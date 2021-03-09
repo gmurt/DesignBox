@@ -66,6 +66,7 @@ object frmMain: TfrmMain
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
+    PopupMenu = PopupMenu1
     ExplicitLeft = 88
     ExplicitTop = 144
     ExplicitWidth = 100
@@ -79,8 +80,6 @@ object frmMain: TfrmMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitLeft = -72
-    ExplicitTop = -6
     object Image1: TImage
       Left = 320
       Top = 9
@@ -181,5 +180,38 @@ object frmMain: TfrmMain
     Caption = 'Load'
     TabOrder = 1
     OnClick = Button4Click
+  end
+  object PopupMenu1: TPopupMenu
+    OnPopup = PopupMenu1Popup
+    Left = 328
+    Top = 224
+    object BringToFront1: TMenuItem
+      Action = actBringToFront
+    end
+    object SendToBack1: TMenuItem
+      Action = actSendToBack
+    end
+    object N1: TMenuItem
+      Caption = '-'
+    end
+    object Delete1: TMenuItem
+      Action = actDelete
+    end
+  end
+  object ActionList1: TActionList
+    Left = 224
+    Top = 224
+    object actBringToFront: TAction
+      Caption = 'Bring To Front'
+      OnExecute = actBringToFrontExecute
+    end
+    object actSendToBack: TAction
+      Caption = 'Send To Back'
+      OnExecute = actSendToBackExecute
+    end
+    object actDelete: TAction
+      Caption = 'Delete'
+      OnExecute = actDeleteExecute
+    end
   end
 end

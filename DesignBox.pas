@@ -38,8 +38,11 @@ type
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function PointInRgn(x, y: integer): Boolean;
+    function RectsIntersect(ARect: TRect): Boolean;
     procedure SaveToJson(AJson: TJsonObject); virtual;
     procedure LoadFromJson(AJson: TJsonObject); virtual;
+    procedure SendToBack;
+    procedure BringToFront;
     property Selected: Boolean read FSelected write SetSelectedItem;
     property LeftMM: single read GetLeftMM write SetLeftMM;
     property TopMM: single read GetTopMM write SetTopMM;
@@ -84,14 +87,19 @@ type
     FDesignBox: TDesignBox;
     function GetSelectedItem: TDesignBoxBaseItem;
     procedure SetSelectedItem(const Value: TDesignBoxBaseItem);
+    function GetSelectedCount: integer;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
+    procedure BringToFront(AObj: TDesignBoxBaseItem);
+    procedure SendToBack(AObj: TDesignBoxBaseItem);
     procedure LoadFromJson(AJson: TJsonObject);
     procedure SaveToJson(AJson: TJsonObject);
+    procedure DeleteSelected;
     property SelectedItem: TDesignBoxBaseItem read GetSelectedItem write SetSelectedItem;
+    property SelectedCount: integer read GetSelectedCount;
   end;
 
   TDesignBox = class(TGraphicControl)
@@ -102,6 +110,7 @@ type
     FMouseDownPos: TPoint;
     FMouseXY: TPoint;
     FBuffer: TBitmap;
+    FDragRect: TRect;
     FOnSelectItem: TDesignBoxSelectItemEvent;
     procedure SetSelectedItem(const Value: TDesignBoxBaseItem);
   protected
@@ -120,6 +129,8 @@ type
     procedure LoadFromStream(AStream: TStream);
     procedure SaveToFile(AFilename: string);
     procedure LoadFromFile(AFilename: string);
+    procedure BringToFront;
+    procedure SendToBack;
     property Items: TDesignBoxItemList read FItems;
     property SelectedItem: TDesignBoxBaseItem read FSelectedItem write SetSelectedItem;
   published
@@ -128,6 +139,7 @@ type
     property OnMouseDown;
     property OnMouseMove;
     property OnMouseUp;
+    property PopupMenu;
   end;
 
 
@@ -143,6 +155,17 @@ begin
 end;
 
 { TDesignBox }
+
+procedure TDesignBox.BringToFront;
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  for AItem in FItems do
+  begin
+    if AItem.Selected then
+      AItem.BringToFront;
+  end;
+end;
 
 procedure TDesignBox.Clear;
 begin
@@ -199,7 +222,15 @@ var
 begin
   inherited;
   FMouseDownPos := Point(X, Y);
-  SelectedItem := FItems.ItemAtPos(x, y);
+  AItem := FItems.ItemAtPos(x, y);
+  if AItem = nil then
+    SelectedItem := nil
+  else
+  begin
+    if (AItem.Selected = False) then
+      SelectedItem := AItem;
+  end;
+
   FDragging := True;
   FMouseXY := Point(X, Y);
   if (SelectedItem <> nil) and (Assigned(FOnSelectItem)) then
@@ -207,27 +238,58 @@ begin
 end;
 
 procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  AItem: TDesignBoxBaseItem;
 begin
   inherited;
   if (FDragging) and (FItems.SelectedItem <> nil) then
   begin
-    FItems.SelectedItem.OffsetByPixels(X- FMouseXY.X, Y - FMouseXY.Y);
+    for AItem in FItems do
+    begin
+      if AItem.Selected then
+        AItem.OffsetByPixels(X- FMouseXY.X, Y - FMouseXY.Y);
+    end;
   end;
   FMouseXY := Point(X, Y);
+  if FDragging then
+    Invalidate;
 end;
 
 procedure TDesignBox.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  ADragArea: TRect;
+  AItem: TDesignBoxBaseItem;
 begin
   inherited;
+  if (FDragging) and (FItems.SelectedItem = nil) then
+  begin
+    ADragArea := Rect(FMouseDownPos.X, FMouseDownPos.Y, X, Y);
+    for AItem in FItems do
+    begin
+      AItem.Selected := AItem.RectsIntersect(ADragArea);
+    end;
+  end;
+
   FDragging := False;
+  Invalidate;
 end;
 
 procedure TDesignBox.Paint;
 { }
 begin
+
   if (FBuffer.Width = 0) then
     Redraw;
   Canvas.Draw(0, 0, FBuffer);
+  if (FDragging) and (FItems.SelectedItem = nil) then
+  begin
+    Canvas.Pen.Style := psDot;
+    Canvas.Pen.Color := clBlack;
+    Canvas.Pen.Mode := pmNot;
+    Canvas.Brush.Style := bsClear;
+    Canvas.Rectangle(FMouseDownPos.X, FMouseDownPos.Y, FMouseXY.X, FMouseXY.Y);
+
+  end;
 end;
 
 
@@ -278,6 +340,17 @@ begin
     AJson.SaveToStream(AStream);
   finally
     AJson.Free;
+  end;
+end;
+
+procedure TDesignBox.SendToBack;
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  for AItem in FItems do
+  begin
+    if AItem.Selected then
+      AItem.SendToBack;
   end;
 end;
 
@@ -371,6 +444,11 @@ end;
 
 { TDesignBoxBaseItem }
 
+procedure TDesignBoxBaseItem.BringToFront;
+begin
+  FDesignBox.Items.BringToFront(Self);
+end;
+
 procedure TDesignBoxBaseItem.Changed;
 begin
   FDesignBox.Redraw;
@@ -413,6 +491,11 @@ begin
   Result.Bottom := Round(((FPositionMM.Y + FHeightMM) / 25.4) * 96);
 end;
 
+function TDesignBoxBaseItem.RectsIntersect(ARect: TRect): Boolean;
+begin
+  Result := IntersectRect(ARect, RectPixels);
+end;
+
 procedure TDesignBoxBaseItem.LoadFromJson(AJson: TJsonObject);
 begin
   FPositionMM.X := AJson.F['x'];
@@ -428,6 +511,11 @@ begin
   AJson.F['y'] := FPositionMM.Y;
   AJson.F['width'] := FWidthMM;
   AJson.F['height'] := FHeightMM;
+end;
+
+procedure TDesignBoxBaseItem.SendToBack;
+begin
+  FDesignBox.Items.SendToBack(Self);
 end;
 
 procedure TDesignBoxBaseItem.SetLeftMM(const Value: single);
@@ -461,6 +549,13 @@ begin
   FDesignBox.Redraw;
 end;
 
+procedure TDesignBoxItemList.BringToFront(AObj: TDesignBoxBaseItem);
+begin
+  Extract(AObj);
+  Add(AObj);
+  FDesignBox.Redraw;
+end;
+
 function TDesignBoxItemList.AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
   Result := TDesignBoxItemGraphic.Create(FDesignBox);
@@ -475,6 +570,26 @@ constructor TDesignBoxItemList.Create(ADesignBox: TDesignBox);
 begin
   inherited Create(True);
   FDesignBox := ADesignBox;
+end;
+
+procedure TDesignBoxItemList.DeleteSelected;
+var
+  ICount: integer;
+begin
+  for ICount := Count-1 downto 0 do
+    if Items[ICount].Selected then
+      Delete(ICount);
+  FDesignBox.Redraw;
+end;
+
+function TDesignBoxItemList.GetSelectedCount: integer;
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  Result := 0;
+  for AItem in Self do
+    if AItem.Selected then
+      Result := Result + 1;
 end;
 
 function TDesignBoxItemList.GetSelectedItem: TDesignBoxBaseItem;
@@ -543,6 +658,13 @@ begin
     AItem.SaveToJson(AObj);
     AItems.Add(AObj);
   end;
+end;
+
+procedure TDesignBoxItemList.SendToBack(AObj: TDesignBoxBaseItem);
+begin
+  Extract(AObj);
+  Insert(0, AObj);
+  FDesignBox.Redraw;
 end;
 
 procedure TDesignBoxItemList.SetSelectedItem(const Value: TDesignBoxBaseItem);

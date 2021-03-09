@@ -36,6 +36,7 @@ requires
   xmlrtl;
 
 contains
-  DesignBox in 'DesignBox.pas';
+  DesignBox in 'DesignBox.pas',
+  JsonDataObjects in 'JsonDataObjects.pas';
 
 end.

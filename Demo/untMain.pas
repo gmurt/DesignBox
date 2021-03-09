@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, System.Generics.Collections,
-  System.Types, DesignBox, Vcl.Imaging.pngimage;
+  System.Types, DesignBox, Vcl.Imaging.pngimage, System.Actions, Vcl.ActnList, Vcl.Menus;
 
 type
   TfrmMain = class(TForm)
@@ -23,6 +23,15 @@ type
     Button3: TButton;
     Button4: TButton;
     Button5: TButton;
+    PopupMenu1: TPopupMenu;
+    ActionList1: TActionList;
+    actBringToFront: TAction;
+    actSendToBack: TAction;
+    BringToFront1: TMenuItem;
+    SendToBack1: TMenuItem;
+    N1: TMenuItem;
+    actDelete: TAction;
+    Delete1: TMenuItem;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -31,9 +40,14 @@ type
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
+    procedure actBringToFrontExecute(Sender: TObject);
+    procedure actSendToBackExecute(Sender: TObject);
+    procedure PopupMenu1Popup(Sender: TObject);
+    procedure actDeleteExecute(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords(AItem: TDesignBoxBaseItem);
+    procedure UpdateActionStates;
     { Private declarations }
   public
 
@@ -46,6 +60,21 @@ var
 implementation
 
 {$R *.dfm}
+
+procedure TfrmMain.actBringToFrontExecute(Sender: TObject);
+begin
+  DesignBox1.BringToFront;
+end;
+
+procedure TfrmMain.actDeleteExecute(Sender: TObject);
+begin
+  DesignBox1.Items.DeleteSelected;
+end;
+
+procedure TfrmMain.actSendToBackExecute(Sender: TObject);
+begin
+  DesignBox1.SendToBack;
+end;
 
 function TfrmMain.AppDir: string;
 begin
@@ -90,6 +119,18 @@ end;
 procedure TfrmMain.DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
 begin
   UpdateItemCoords(DesignBox1.SelectedItem);
+end;
+
+procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
+begin
+  UpdateActionStates;
+end;
+
+procedure TfrmMain.UpdateActionStates;
+begin
+  actBringToFront.Enabled := DesignBox1.Items.SelectedCount > 0;
+  actSendToBack.Enabled := DesignBox1.Items.SelectedCount > 0;
+  actDelete.Enabled := DesignBox1.Items.SelectedCount > 0;
 end;
 
 procedure TfrmMain.UpdateItemCoords(AItem: TDesignBoxBaseItem);
