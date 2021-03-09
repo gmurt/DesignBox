@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{7798E49E-3949-48BF-8A33-F2427F31E194}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="DesignBox.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Demo\DesignBoxDemo.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DesignBox">
+        <MSBuild Projects="DesignBox.dproj"/>
+    </Target>
+    <Target Name="DesignBox:Clean">
+        <MSBuild Projects="DesignBox.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DesignBox:Make">
+        <MSBuild Projects="DesignBox.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DesignBoxDemo">
+        <MSBuild Projects="Demo\DesignBoxDemo.dproj"/>
+    </Target>
+    <Target Name="DesignBoxDemo:Clean">
+        <MSBuild Projects="Demo\DesignBoxDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DesignBoxDemo:Make">
+        <MSBuild Projects="Demo\DesignBoxDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DesignBox;DesignBoxDemo"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DesignBox:Clean;DesignBoxDemo:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DesignBox:Make;DesignBoxDemo:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
