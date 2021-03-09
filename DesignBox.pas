@@ -137,7 +137,6 @@ type
     FMouseDownPos: TPoint;
     FMouseXY: TPoint;
     FBuffer: TBitmap;
-    FDragRect: TRect;
     FOnSelectItem: TDesignBoxSelectItemEvent;
     procedure SetSelectedItem(const Value: TDesignBoxBaseItem);
   protected
@@ -387,8 +386,6 @@ begin
 end;
 
 procedure TDesignBox.SetSelectedItem(const Value: TDesignBoxBaseItem);
-var
-  AItem: TDesignBoxBaseItem;
 begin
   FSelectedItem := Value;
   FItems.SelectedItem := FSelectedItem;
@@ -427,8 +424,6 @@ begin
 end;
 
 procedure TDesignBoxItemText.PaintToCanvas(ACanvas: TCanvas);
-var
-  ARect: TRect;
 begin
   ACanvas.Font.Assign(FFont);
   // calculate width/height...
@@ -893,8 +888,6 @@ begin
 end;
 
 procedure TDesignBoxItemShape.PaintToCanvas(ACanvas: TCanvas);
-var
-  ARect: TRect;
 begin
   ACanvas.Pen.Color := LineColor;
   ACanvas.Pen.Style := psSolid;
