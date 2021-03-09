@@ -5,24 +5,22 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, System.Generics.Collections,
-  System.Types, DesignBox, Vcl.Imaging.pngimage, System.Actions, Vcl.ActnList, Vcl.Menus;
+  System.Types, DesignBox, Vcl.Imaging.pngimage, System.Actions, Vcl.ActnList, Vcl.Menus, Vcl.ComCtrls;
 
 type
   TfrmMain = class(TForm)
     Panel1: TPanel;
-    Button1: TButton;
+    btnAddText: TButton;
     Bevel1: TBevel;
     Bevel2: TBevel;
     Bevel3: TBevel;
     Bevel4: TBevel;
     DesignBox1: TDesignBox;
     Image1: TImage;
-    Button2: TButton;
-    Label1: TLabel;
-    Label2: TLabel;
-    Button3: TButton;
-    Button4: TButton;
-    Button5: TButton;
+    btnAddGraphic: TButton;
+    btnSave: TButton;
+    btnLoad: TButton;
+    btnClear: TButton;
     PopupMenu1: TPopupMenu;
     ActionList1: TActionList;
     actBringToFront: TAction;
@@ -32,22 +30,36 @@ type
     N1: TMenuItem;
     actDelete: TAction;
     Delete1: TMenuItem;
-    Button6: TButton;
-    Button7: TButton;
-    procedure Button1Click(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
+    btnAddRectangle: TButton;
+    btnAddEllipse: TButton;
+    StatusBar1: TStatusBar;
+    btnFont: TButton;
+    btnBorderColor: TButton;
+    btnFillColor: TButton;
+    FontDialog1: TFontDialog;
+    dlgBorderColor: TColorDialog;
+    dlgFillColor: TColorDialog;
+    CheckBox1: TCheckBox;
+    Edit1: TEdit;
+    procedure btnAddTextClick(Sender: TObject);
+    procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
     procedure DesignBox1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-    procedure Button3Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
-    procedure Button5Click(Sender: TObject);
+    procedure btnSaveClick(Sender: TObject);
+    procedure btnLoadClick(Sender: TObject);
+    procedure btnClearClick(Sender: TObject);
     procedure actBringToFrontExecute(Sender: TObject);
     procedure actSendToBackExecute(Sender: TObject);
     procedure PopupMenu1Popup(Sender: TObject);
     procedure actDeleteExecute(Sender: TObject);
-    procedure Button6Click(Sender: TObject);
-    procedure Button7Click(Sender: TObject);
+    procedure btnAddRectangleClick(Sender: TObject);
+    procedure btnAddEllipseClick(Sender: TObject);
+    procedure btnFontClick(Sender: TObject);
+    procedure btnBorderColorClick(Sender: TObject);
+    procedure btnFillColorClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure CheckBox1Click(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords(AItem: TDesignBoxBaseItem);
@@ -85,39 +97,93 @@ begin
   Result := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)));
 end;
 
-procedure TfrmMain.Button1Click(Sender: TObject);
+procedure TfrmMain.btnBorderColorClick(Sender: TObject);
 begin
-  DesignBox1.Items.AddText(20, 20, 'Some Text');
+  if dlgBorderColor.Execute and (DesignBox1.SelectedItem is TDesignBoxItemShape) then
+    TDesignBoxItemShape(DesignBox1.SelectedItem).LineColor := dlgBorderColor.color;
 end;
 
-procedure TfrmMain.Button2Click(Sender: TObject);
+procedure TfrmMain.btnFillColorClick(Sender: TObject);
 begin
-  DesignBox1.Items.AddGraphic(20, 20, Image1.Picture.Graphic);
+  if dlgFillColor.Execute and assigned(DesignBox1.SelectedItem) then
+  begin
+    if DesignBox1.SelectedItem is TDesignBoxItemText then
+      TDesignBoxItemText(DesignBox1.SelectedItem).BackgroundColor := dlgFillColor.color
+    else
+    if DesignBox1.SelectedItem is TDesignBoxItemShape then
+      TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor := dlgFillColor.Color
+  end;
 end;
 
-procedure TfrmMain.Button3Click(Sender: TObject);
+procedure TfrmMain.btnFontClick(Sender: TObject);
+begin
+  if FontDialog1.execute and (DesignBox1.SelectedItem is TDesignBoxItemText) then
+    TDesignBoxItemText(DesignBox1.SelectedItem).Font.Assign(FontDialog1.Font);
+end;
+
+procedure TfrmMain.btnAddTextClick(Sender: TObject);
+var
+  item: TDesignBoxItemText;
+begin
+  item := DesignBox1.Items.AddText(20, 20, 'Some Text');
+  DesignBox1.items.DeselectAll;
+  item.selected := True;
+end;
+
+procedure TfrmMain.btnAddGraphicClick(Sender: TObject);
+var
+  item: TDesignBoxItemGraphic;
+begin
+  item := DesignBox1.Items.AddGraphic(20, 20, Image1.Picture.Graphic);
+  DesignBox1.items.DeselectAll;
+  item.selected := True;
+end;
+
+procedure TfrmMain.btnSaveClick(Sender: TObject);
 begin
   DesignBox1.SaveToFile(AppDir+'data.json');
 end;
 
-procedure TfrmMain.Button4Click(Sender: TObject);
+procedure TfrmMain.CheckBox1Click(Sender: TObject);
+begin
+  dlgFillColor.Color := clNone;
+  btnFillColor.Enabled := not TCheckBox(Sender).Checked;
+  if assigned(DesignBox1.SelectedItem) then
+  begin
+    if DesignBox1.SelectedItem is TDesignBoxItemText then
+      TDesignBoxItemText(DesignBox1.SelectedItem).BackgroundColor := clNone
+    else
+    if DesignBox1.SelectedItem is TDesignBoxItemShape then
+      TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor := clNone
+  end;
+end;
+
+procedure TfrmMain.btnLoadClick(Sender: TObject);
 begin
   DesignBox1.LoadFromFile(AppDir+'data.json');
 end;
 
-procedure TfrmMain.Button5Click(Sender: TObject);
+procedure TfrmMain.btnClearClick(Sender: TObject);
 begin
   DesignBox1.Clear;
 end;
 
-procedure TfrmMain.Button6Click(Sender: TObject);
+procedure TfrmMain.btnAddRectangleClick(Sender: TObject);
+var
+  item: TDesignBoxItemShape;
 begin
-  DesignBox1.Items.AddRectangle(20, 20, 40, 40, clBlack, clYellow);
+  item := DesignBox1.Items.AddRectangle(20, 20, 40, 40, dlgBorderColor.Color, dlgFillColor.Color);
+  DesignBox1.items.DeselectAll;
+  item.selected := True;
 end;
 
-procedure TfrmMain.Button7Click(Sender: TObject);
+procedure TfrmMain.btnAddEllipseClick(Sender: TObject);
+var
+  item: TDesignBoxItemShape;
 begin
-  DesignBox1.Items.AddEllipse(20, 20, 40, 40, clBlack, clSkyBlue);
+  item := DesignBox1.Items.AddEllipse(20, 20, 40, 40, dlgBorderColor.Color, dlgFillColor.Color);
+  DesignBox1.items.DeselectAll;
+  item.selected := True;
 end;
 
 procedure TfrmMain.DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -133,6 +199,28 @@ end;
 procedure TfrmMain.DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
 begin
   UpdateItemCoords(DesignBox1.SelectedItem);
+  // no selected item = set default fonts/color for next item
+  btnFont.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemText);
+  btnBorderColor.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemShape) or (DesignBox1.SelectedItem is TDesignBoxItemText); // text can have font color
+  btnFillColor.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemShape) or (DesignBox1.SelectedItem is TDesignBoxItemText); // text can have background color
+  if DesignBox1.SelectedItem is TDesignBoxItemText then
+  begin
+    FontDialog1.Font.Assign(TDesignBoxItemText(DesignBox1.SelectedItem).Font);
+    btnBorderColor.Caption := 'Text Colour';
+  end;
+  if DesignBox1.SelectedItem is TDesignBoxItemShape then
+  begin
+    dlgBorderColor.Color := TDesignBoxItemShape(DesignBox1.SelectedItem).LineColor;
+    btnBorderColor.Caption := 'Border';
+    dlgFillColor.Color := TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor;
+  end;
+end;
+
+procedure TfrmMain.FormCreate(Sender: TObject);
+begin
+  self.Caption := application.title;
+  dlgBorderColor.Color := clWebNavy;
+  dlgFillColor.Color := clWebLightSkyBlue;
 end;
 
 procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
@@ -149,13 +237,10 @@ end;
 
 procedure TfrmMain.UpdateItemCoords(AItem: TDesignBoxBaseItem);
 begin
-  Label1.Caption := '-';
-  Label2.Caption := '-';
   if AItem <> nil then
-  begin
-    Label1.Caption := 'X: '+FormatFloat('0.00', AItem.LeftMM)+' mm';
-    Label2.Caption := 'Y: '+FormatFloat('0.00', AItem.TopMM)+' mm';
-  end;
+    StatusBar1.SimpleText := Format('X = %fmm | Y = %fmm' ,[AItem.LeftMM, AItem.TopMM])
+  else
+    StatusBar1.SimpleText := 'No items selected';
 end;
 
 end.

@@ -8,17 +8,18 @@ object frmMain: TfrmMain
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   PixelsPerInch = 96
-  TextHeight = 13
+  TextHeight = 15
   object Bevel1: TBevel
     Left = 0
     Top = 89
     Width = 8
-    Height = 337
+    Height = 318
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -26,7 +27,7 @@ object frmMain: TfrmMain
   end
   object Bevel2: TBevel
     Left = 0
-    Top = 426
+    Top = 407
     Width = 669
     Height = 8
     Align = alBottom
@@ -39,7 +40,7 @@ object frmMain: TfrmMain
     Left = 661
     Top = 89
     Width = 8
-    Height = 337
+    Height = 318
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -53,15 +54,13 @@ object frmMain: TfrmMain
     Height = 8
     Align = alTop
     Shape = bsSpacer
-    ExplicitLeft = 8
-    ExplicitTop = 49
-    ExplicitWidth = 354
+    ExplicitLeft = -8
   end
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
     Width = 653
-    Height = 337
+    Height = 318
     Align = alClient
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
@@ -81,8 +80,8 @@ object frmMain: TfrmMain
     BevelOuter = bvNone
     TabOrder = 0
     object Image1: TImage
-      Left = 320
-      Top = 9
+      Left = 136
+      Top = -7
       Width = 41
       Height = 41
       Picture.Data = {
@@ -109,95 +108,120 @@ object frmMain: TfrmMain
       Stretch = True
       Visible = False
     end
-    object Label1: TLabel
-      Left = 232
-      Top = 8
-      Width = 60
-      Height = 18
-      Caption = 'X: 0mm'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -16
-      Font.Name = 'Courier New'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Label2: TLabel
-      Left = 232
-      Top = 32
-      Width = 60
-      Height = 18
-      Caption = 'Y: 0mm'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -16
-      Font.Name = 'Courier New'
-      Font.Style = []
-      ParentFont = False
-    end
-    object Button1: TButton
+    object btnAddText: TButton
       Left = 16
-      Top = 16
+      Top = 19
       Width = 83
       Height = 25
       Caption = 'Add Text'
       TabOrder = 0
-      OnClick = Button1Click
+      OnClick = btnAddTextClick
     end
-    object Button2: TButton
+    object btnAddGraphic: TButton
       Left = 112
-      Top = 16
+      Top = 19
       Width = 83
       Height = 25
       Caption = 'Add QR Code'
       TabOrder = 1
-      OnClick = Button2Click
+      OnClick = btnAddGraphicClick
     end
-    object Button3: TButton
-      Left = 489
-      Top = 16
-      Width = 83
+    object btnSave: TButton
+      Left = 525
+      Top = 50
+      Width = 65
       Height = 25
       Caption = 'Save'
-      TabOrder = 2
-      OnClick = Button3Click
+      TabOrder = 10
+      OnClick = btnSaveClick
     end
-    object Button5: TButton
-      Left = 367
-      Top = 16
-      Width = 83
+    object btnClear: TButton
+      Left = 454
+      Top = 50
+      Width = 65
       Height = 25
       Caption = 'Clear'
-      TabOrder = 3
-      OnClick = Button5Click
+      TabOrder = 9
+      OnClick = btnClearClick
     end
-    object Button6: TButton
+    object btnAddRectangle: TButton
       Left = 16
-      Top = 47
+      Top = 50
       Width = 83
       Height = 25
       Caption = 'Add Rectangle'
-      TabOrder = 4
-      OnClick = Button6Click
+      TabOrder = 2
+      OnClick = btnAddRectangleClick
     end
-    object Button7: TButton
+    object btnAddEllipse: TButton
       Left = 112
-      Top = 47
+      Top = 50
       Width = 83
       Height = 25
       Caption = 'Add Ellipse'
+      TabOrder = 3
+      OnClick = btnAddEllipseClick
+    end
+    object btnFont: TButton
+      Left = 596
+      Top = 19
+      Width = 65
+      Height = 25
+      Caption = 'Font'
+      TabOrder = 7
+      OnClick = btnFontClick
+    end
+    object btnBorderColor: TButton
+      Left = 525
+      Top = 19
+      Width = 65
+      Height = 25
+      Caption = 'Border'
+      TabOrder = 6
+      OnClick = btnBorderColorClick
+    end
+    object btnFillColor: TButton
+      Left = 454
+      Top = 19
+      Width = 65
+      Height = 25
+      Caption = 'Fill'
       TabOrder = 5
-      OnClick = Button7Click
+      OnClick = btnFillColorClick
+    end
+    object CheckBox1: TCheckBox
+      Left = 390
+      Top = 23
+      Width = 58
+      Height = 17
+      Caption = 'No Fill'
+      TabOrder = 4
+      OnClick = CheckBox1Click
+    end
+    object btnLoad: TButton
+      Left = 596
+      Top = 50
+      Width = 65
+      Height = 25
+      Caption = 'Load'
+      TabOrder = 11
+      OnClick = btnLoadClick
+    end
+    object Edit1: TEdit
+      Left = 216
+      Top = 50
+      Width = 232
+      Height = 23
+      TabOrder = 8
     end
   end
-  object Button4: TButton
-    Left = 578
-    Top = 16
-    Width = 83
-    Height = 25
-    Caption = 'Load'
-    TabOrder = 1
-    OnClick = Button4Click
+  object StatusBar1: TStatusBar
+    Left = 0
+    Top = 415
+    Width = 669
+    Height = 19
+    Panels = <>
+    SimplePanel = True
   end
   object PopupMenu1: TPopupMenu
     OnPopup = PopupMenu1Popup
@@ -231,5 +255,24 @@ object frmMain: TfrmMain
       Caption = 'Delete'
       OnExecute = actDeleteExecute
     end
+  end
+  object FontDialog1: TFontDialog
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    Left = 224
+    Top = 112
+  end
+  object dlgBorderColor: TColorDialog
+    Options = [cdAnyColor]
+    Left = 304
+    Top = 112
+  end
+  object dlgFillColor: TColorDialog
+    Options = [cdAnyColor]
+    Left = 384
+    Top = 112
   end
 end

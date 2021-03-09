@@ -1,5 +1,15 @@
 unit DesignBox;
 
+{ TODO 1 : Bug - text background colors not drawing reliably - seem to depend on the color of adjacent items in the list }
+{ TODO 3 : Editable text items - no keyboard events on TGraphicControl - maybe need to inherit from TWinControl and add our own Canvas - or just ignore and go with a "property sheet" UI paradigm ? }
+{ TODO 1 : Lines - aka two point selection) }
+{ TODO 1 : Resize graphics (4 point selection box) }
+{ TODO 1 : Shapes - fill styles FDiagonal etc }
+{ TODO 2 : Actual bar code items - i.e. dynamically draw the QR/DataMatrix/EAN barcode not just an image }
+{ TODO 2 : background image }
+{ TODO 2 : rulers ?  }
+{ TODO 3 : Shift/Ctrl Key item selection (TGraphicControl lack of keyboard may be an issue here too) }
+
 interface
 
 uses
@@ -35,7 +45,7 @@ type
   protected
     procedure OffsetByPixels(X, Y: integer);
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
-    procedure DrawSelectedRect(ACanvas: TCanvas);
+    procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function PointInRgn(x, y: integer): Boolean;
@@ -71,9 +81,25 @@ type
     property BackgroundColor: TColor read FBackground write SetBackground default clWhite;
   end;
 
+  TDragHandlePos = (dhTopLeft,dhTopRight,dhBottomRight,dhBottomLeft);  // clockwise from (0,0)
+  TDragHandleRectArray = array[TDragHandlePos] of TRect;
+
+  /// base class for items with a set of grab handles - note Text items will not have this as Font size & text property will determine bounds
+  TDesignBoxItemSizable = class(TDesignBoxBaseItem)
+  private
+    fSelectHandles: TDragHandleRectArray;
+    fIsDraggingHandle: boolean;      // is user dragging via a select handle?
+    fSelectedHandle: TDragHandlePos; // if so which one ?
+  protected
+    procedure DrawSelectedRect(ACanvas: TCanvas); override;
+  public
+    constructor Create(ADesignBox: TDesignBox); override;
+    destructor Destroy; override;
+  end;
+
   TDbShape = (dbEllipse, dbRectangle, dbLine);
 
-  TDesignBoxItemShape = class(TDesignBoxBaseItem)
+  TDesignBoxItemShape = class(TDesignBoxItemSizable)
   private
     FShape: TdbShape;
     FBackground: TColor;
@@ -91,7 +117,7 @@ type
     property BackgroundColor: TColor read FBackground write SetBackground default clWhite;
   end;
 
-  TDesignBoxItemGraphic = class(TDesignBoxBaseItem)
+  TDesignBoxItemGraphic = class(TDesignBoxItemSizable)
   private
     FGraphic: TPicture;
     procedure SetGraphic(const Value: TPicture);
@@ -127,6 +153,7 @@ type
     procedure DeleteSelected;
     property SelectedItem: TDesignBoxBaseItem read GetSelectedItem write SetSelectedItem;
     property SelectedCount: integer read GetSelectedCount;
+    procedure DeselectAll;
   end;
 
   TDesignBox = class(TGraphicControl)
@@ -168,12 +195,15 @@ type
     property PopupMenu;
   end;
 
-
 procedure Register;
 
 implementation
 
 uses System.NetEncoding, PngImage, Jpeg, Math;
+
+const
+  C_HIGHLIGHT_COLOR = clHotlight;
+  C_SELECTBOX_INFLATE = 2;
 
 procedure Register;
 begin
@@ -430,14 +460,17 @@ begin
   FWidthMM := (ACanvas.TextWidth(FText) / 96) * 25.4;
   FHeightMM := (ACanvas.TextHeight(FText) / 96) * 25.4;
   ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
+  ACanvas.Brush.Color := BackgroundColor;
   ACanvas.Pen.Color := clBlack;
-  if FBackground = clNone then
-    ACanvas.Brush.Style := bsClear
-  else
-  begin
-    ACanvas.Brush.Style := bsSolid;
-    ACanvas.Brush.Color := FBackground;
-  end;
+// -- this is a little buggy
+//  if FBackground = clNone then
+//    ACanvas.Brush.Style := bsClear
+//  else
+//  begin
+//    ACanvas.Brush.Style := bsSolid;
+//    ACanvas.Brush.Color := FBackground;
+//  end;
+  ACanvas.Brush.Style := bsClear;
   ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
 end;
 
@@ -508,9 +541,9 @@ begin
   if FSelected then
   begin
     ARect := RectPixels;
-    InflateRect(ARect, 2, 2);
+    InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
     ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Color := clBlue;
+    ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Rectangle(ARect);
   end;
 end;
@@ -629,6 +662,7 @@ begin
   Result.LeftMM := ALeftMM;
   Result.TopMM := ATopMM;
   Result.Text := AText;
+  Result.BackgroundColor := clNone; // draw transparent for now
   Add(Result);
   FDesignBox.Redraw;
 end;
@@ -669,6 +703,14 @@ begin
     if Items[ICount].Selected then
       Delete(ICount);
   FDesignBox.Redraw;
+end;
+
+procedure TDesignBoxItemList.DeselectAll;
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  for AItem in Self do
+    AItem.Selected := false;
 end;
 
 function TDesignBoxItemList.GetSelectedCount: integer;
@@ -936,6 +978,51 @@ begin
   begin
     FLineColor := Value;
     FDesignBox.Redraw;
+  end;
+end;
+
+{ TDesignBoxItemSelectable }
+
+constructor TDesignBoxItemSizable.Create(ADesignBox: TDesignBox);
+begin
+  inherited;
+  //
+end;
+
+destructor TDesignBoxItemSizable.Destroy;
+begin
+  //
+  inherited;
+end;
+
+procedure TDesignBoxItemSizable.DrawSelectedRect(ACanvas: TCanvas);
+var
+  ii: TDragHandlePos;
+  aRect, handleRect : TRect;
+  handlePoints : array[TDragHandlePos] of TPoint; // array of the centrepoints of each selectHandle
+const
+  CH_RADIUS = 4; // 16 pixel square grab handlePoints
+begin
+  inherited DrawSelectedRect(ACanvas);
+  if FSelected then
+  begin
+    aRect := RectPixels;
+    InflateRect(aRect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE); // duplicate the inherited version
+    ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
+    ACanvas.Brush.Style := bsSolid;
+    ACanvas.Brush.Color := ACanvas.Pen.Color;
+
+    handlePoints[dhTopLeft]     := aRect.TopLeft;
+    handlePoints[dhTopRight]    := Point(aRect.Right, aRect.Top);
+    handlePoints[dhBottomRight] := aRect.BottomRight;
+    handlePoints[dhBottomLeft]  := Point(aRect.Left, aRect.Bottom);
+
+    for ii := Low(TDragHandlePos) to High(TDragHandlePos) do
+    begin
+      handleRect := Rect(handlePoints[ii].X - CH_RADIUS, handlePoints[ii].Y - CH_RADIUS, handlePoints[ii].X + CH_RADIUS, handlePoints[ii].Y + CH_RADIUS);
+      fSelectHandles[ii] := handleRect; // save for comparison in PointInRgn later
+      ACanvas.Rectangle(handleRect);
+    end;
   end;
 end;
 
