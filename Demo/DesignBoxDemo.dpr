@@ -2,8 +2,7 @@ program DesignBoxDemo;
 
 uses
   Vcl.Forms,
-  untMain in 'untMain.pas' {frmMain},
-  DesignBox in 'DesignBox.pas';
+  untMain in 'untMain.pas' {frmMain};
 
 {$R *.res}
 
