@@ -16,9 +16,9 @@ object frmMain: TfrmMain
   TextHeight = 13
   object Bevel1: TBevel
     Left = 0
-    Top = 73
+    Top = 89
     Width = 8
-    Height = 353
+    Height = 337
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -37,9 +37,9 @@ object frmMain: TfrmMain
   end
   object Bevel3: TBevel
     Left = 661
-    Top = 73
+    Top = 89
     Width = 8
-    Height = 353
+    Height = 337
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -48,7 +48,7 @@ object frmMain: TfrmMain
   end
   object Bevel4: TBevel
     Left = 0
-    Top = 65
+    Top = 81
     Width = 669
     Height = 8
     Align = alTop
@@ -59,9 +59,9 @@ object frmMain: TfrmMain
   end
   object DesignBox1: TDesignBox
     Left = 8
-    Top = 73
+    Top = 89
     Width = 653
-    Height = 353
+    Height = 337
     Align = alClient
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
@@ -76,7 +76,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 0
     Width = 669
-    Height = 65
+    Height = 81
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
@@ -170,6 +170,24 @@ object frmMain: TfrmMain
       Caption = 'Clear'
       TabOrder = 3
       OnClick = Button5Click
+    end
+    object Button6: TButton
+      Left = 16
+      Top = 47
+      Width = 83
+      Height = 25
+      Caption = 'Add Rectangle'
+      TabOrder = 4
+      OnClick = Button6Click
+    end
+    object Button7: TButton
+      Left = 112
+      Top = 47
+      Width = 83
+      Height = 25
+      Caption = 'Add Ellipse'
+      TabOrder = 5
+      OnClick = Button7Click
     end
   end
   object Button4: TButton

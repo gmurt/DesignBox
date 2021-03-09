@@ -35,6 +35,7 @@ type
   protected
     procedure OffsetByPixels(X, Y: integer);
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
+    procedure DrawSelectedRect(ACanvas: TCanvas);
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function PointInRgn(x, y: integer): Boolean;
@@ -52,12 +53,13 @@ type
   private
     FText: string;
     FFont: TDesignFont;
+    FBackground: TColor;
     procedure DoFontChange(Sender: TObject);
     procedure SetText(const AText: string);
     function GetFont: TFont;
     procedure SetFont(const Value: TFont);
+    procedure SetBackground(const Value: TColor);
   protected
-
     procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
@@ -66,6 +68,27 @@ type
     procedure LoadFromJson(AJson: TJsonObject); override;
     property Text: string read FText write SetText;
     property Font: TFont read GetFont write SetFont;
+    property BackgroundColor: TColor read FBackground write SetBackground default clWhite;
+  end;
+
+  TDbShape = (dbEllipse, dbRectangle, dbLine);
+
+  TDesignBoxItemShape = class(TDesignBoxBaseItem)
+  private
+    FShape: TdbShape;
+    FBackground: TColor;
+    FLineColor: TColor;
+    procedure SetLineColor(const Value: TColor);
+  protected
+    procedure SetBackground(const Value: TColor);
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
+  public
+    constructor Create(ADesignBox: TDesignBox); override;
+    destructor Destroy; override;
+    procedure SaveToJson(AJson: TJsonObject); override;
+    procedure LoadFromJson(AJson: TJsonObject); override;
+    property LineColor: TColor read FLineColor write SetLineColor default clBlack;
+    property BackgroundColor: TColor read FBackground write SetBackground default clWhite;
   end;
 
   TDesignBoxItemGraphic = class(TDesignBoxBaseItem)
@@ -88,10 +111,14 @@ type
     function GetSelectedItem: TDesignBoxBaseItem;
     procedure SetSelectedItem(const Value: TDesignBoxBaseItem);
     function GetSelectedCount: integer;
+    function AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
+    function AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+    function AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+    function AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor: TColor): TDesignBoxItemShape;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
     procedure BringToFront(AObj: TDesignBoxBaseItem);
     procedure SendToBack(AObj: TDesignBoxBaseItem);
@@ -147,7 +174,7 @@ procedure Register;
 
 implementation
 
-uses System.NetEncoding, PngImage, Jpeg;
+uses System.NetEncoding, PngImage, Jpeg, Math;
 
 procedure Register;
 begin
@@ -275,7 +302,8 @@ begin
 end;
 
 procedure TDesignBox.Paint;
-{ }
+var
+  ARect: TRect;
 begin
 
   if (FBuffer.Width = 0) then
@@ -283,12 +311,12 @@ begin
   Canvas.Draw(0, 0, FBuffer);
   if (FDragging) and (FItems.SelectedItem = nil) then
   begin
+    ARect := Rect(FMouseDownPos.X, FMouseDownPos.Y, FMouseXY.X, FMouseXY.Y);
     Canvas.Pen.Style := psDot;
     Canvas.Pen.Color := clBlack;
     Canvas.Pen.Mode := pmNot;
     Canvas.Brush.Style := bsClear;
-    Canvas.Rectangle(FMouseDownPos.X, FMouseDownPos.Y, FMouseXY.X, FMouseXY.Y);
-
+    Canvas.Rectangle(ARect);
   end;
 end;
 
@@ -304,7 +332,11 @@ begin
   if FItems.Count > 0 then
   begin
     for AItem in FItems do
+    begin
       AItem.PaintToCanvas(FBuffer.Canvas);
+      if AItem.Selected then
+        AItem.DrawSelectedRect(FBuffer.Canvas);
+    end;
   end;
   Invalidate;
 end;
@@ -375,7 +407,7 @@ begin
   FFont := TDesignFont.Create;
   FFont.Size := 16;
   FFont.OnChange := DoFontChange;
-
+  FBackground := clWhite;
 end;
 
 destructor TDesignBoxItemText.Destroy;
@@ -395,6 +427,8 @@ begin
 end;
 
 procedure TDesignBoxItemText.PaintToCanvas(ACanvas: TCanvas);
+var
+  ARect: TRect;
 begin
   ACanvas.Font.Assign(FFont);
   // calculate width/height...
@@ -402,22 +436,22 @@ begin
   FHeightMM := (ACanvas.TextHeight(FText) / 96) * 25.4;
   ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
   ACanvas.Pen.Color := clBlack;
-  ACanvas.Brush.Style := bsClear;
-  ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
-  if FSelected then
+  if FBackground = clNone then
+    ACanvas.Brush.Style := bsClear
+  else
   begin
-    ACanvas.Pen.Color := clBlue;
-    ACanvas.Rectangle(RectPixels);
+    ACanvas.Brush.Style := bsSolid;
+    ACanvas.Brush.Color := FBackground;
   end;
+  ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
 end;
 
 procedure TDesignBoxItemText.LoadFromJson(AJson: TJsonObject);
 begin
   inherited;
   Text := AJson.S['text'];
-
+  FBackground := AJson.I['bg_color'];
   FFont.LoadFromJson(AJson.O['font']);
-
 end;
 
 
@@ -426,9 +460,17 @@ procedure TDesignBoxItemText.SaveToJson(AJson: TJsonObject);
 begin
   inherited;
   AJson.S['text'] := Text;
-
+  AJson.I['bg_color'] := FBackground;
   FFont.SaveToJson(AJson.O['font']);
+end;
 
+procedure TDesignBoxItemText.SetBackground(const Value: TColor);
+begin
+  if FBackground <> Value then
+  begin
+    FBackground := Value;
+    Changed;
+  end;
 end;
 
 procedure TDesignBoxItemText.SetFont(const Value: TFont);
@@ -438,8 +480,11 @@ end;
 
 procedure TDesignBoxItemText.SetText(const AText: string);
 begin
-  FText := AText;
-  Changed;
+  if FText <> AText then
+  begin
+    FText := AText;
+    Changed;
+  end;
 end;
 
 { TDesignBoxBaseItem }
@@ -459,6 +504,20 @@ begin
   inherited Create;
   FDesignBox := ADesignBox;
   FSelected := False;
+end;
+
+procedure TDesignBoxBaseItem.DrawSelectedRect(ACanvas: TCanvas);
+var
+  ARect: TRect;
+begin
+  if FSelected then
+  begin
+    ARect := RectPixels;
+    InflateRect(ARect, 2, 2);
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.Pen.Color := clBlue;
+    ACanvas.Rectangle(ARect);
+  end;
 end;
 
 function TDesignBoxBaseItem.GetLeftMM: single;
@@ -492,8 +551,14 @@ begin
 end;
 
 function TDesignBoxBaseItem.RectsIntersect(ARect: TRect): Boolean;
+var
+  x1, y1, x2, y2: integer;
 begin
-  Result := IntersectRect(ARect, RectPixels);
+  x1 := Min(ARect.Left, ARect.Right);
+  x2 := Max(ARect.Left, ARect.Right);
+  y1 := Min(ARect.Top, ARect.Bottom);
+  y2 := Max(ARect.Top, ARect.Bottom);
+  Result := IntersectRect(Rect(x1, y1, x2, y2), RectPixels);
 end;
 
 procedure TDesignBoxBaseItem.LoadFromJson(AJson: TJsonObject);
@@ -539,6 +604,30 @@ end;
 
 { TDesignBoxItemList }
 
+function TDesignBoxItemList.AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor: TColor): TDesignBoxItemShape;
+begin
+  Result := AddShape(dbLine, ALeftMM, ATopMM, ARightMM, ABottomMM, ABorderColor, clNone);
+end;
+
+function TDesignBoxItemList.AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+begin
+  Result := AddShape(dbRectangle, ALeftMM, ATopMM, ARightMM, ABottomMM, ABorderColor, AFillColor);
+end;
+
+function TDesignBoxItemList.AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+begin
+  Result := TDesignBoxItemShape.Create(FDesignBox);
+  Result.FShape := AShape;
+  Result.LeftMM := ALeftMM;
+  Result.TopMM := ATopMM;
+  Result.FWidthMM := ARightMM - ALeftMM;
+  Result.FHeightMM := ABottomMM - ATopMM;
+  Result.FBackground := AFillColor;
+  Result.LineColor := ABorderColor;
+  Add(Result);
+  FDesignBox.Redraw;
+end;
+
 function TDesignBoxItemList.AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
 begin
   Result := TDesignBoxItemText.Create(FDesignBox);
@@ -554,6 +643,11 @@ begin
   Extract(AObj);
   Add(AObj);
   FDesignBox.Redraw;
+end;
+
+function TDesignBoxItemList.AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+begin
+  Result := AddShape(dbEllipse, ALeftMM, ATopMM, ARightMM, ABottomMM, ABorderColor, AFillColor);
 end;
 
 function TDesignBoxItemList.AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
@@ -636,6 +730,7 @@ begin
     AObjName := AObj.S['obj'].ToLower;
     if AObjName = TDesignBoxItemText.ClassName.ToLower then AItem := TDesignBoxItemText.Create(FDesignBox);
     if AObjName = TDesignBoxItemGraphic.ClassName.ToLower then AItem := TDesignBoxItemGraphic.Create(FDesignBox);
+    if AObjName = TDesignBoxItemShape.ClassName.ToLower then AItem := TDesignBoxItemShape.Create(FDesignBox);
 
     if AItem <> nil then
     begin
@@ -727,12 +822,6 @@ begin
   FWidthMM := (FGraphic.Width / 96) * 25.4;
   FHeightMM := (FGraphic.Height / 96) * 25.4;
   ACanvas.Draw(RectPixels.Left, RectPixels.Top, FGraphic.Graphic);
-  if FSelected then
-  begin
-    ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Color := clBlue;
-    ACanvas.Rectangle(RectPixels);
-  end;
 end;
 
 procedure TDesignBoxItemGraphic.SaveToJson(AJson: TJsonObject);
@@ -774,6 +863,87 @@ begin
   AJson.S['name'] := Name;
   AJson.I['size'] := Size;
   AJson.I['color'] := Color;
+end;
+
+{ TDesignBoxItemShape }
+
+constructor TDesignBoxItemShape.Create(ADesignBox: TDesignBox);
+begin
+  inherited;
+  FBackground := clWhite;
+  FLineColor := clBlack;
+end;
+
+destructor TDesignBoxItemShape.Destroy;
+begin
+  inherited;
+end;
+
+procedure TDesignBoxItemShape.LoadFromJson(AJson: TJsonObject);
+var
+  AShape: string;
+begin
+  inherited;
+  AShape := AJson.S['shape'];
+  if AShape = 'ellipse' then FShape := dbEllipse;
+  if AShape = 'rectangle' then FShape := dbRectangle;
+  if AShape = 'line' then FShape := dbLine;
+  FBackground := AJson.I['bg_color'];
+  FLineColor := AJson.I['line_color'];
+end;
+
+procedure TDesignBoxItemShape.PaintToCanvas(ACanvas: TCanvas);
+var
+  ARect: TRect;
+begin
+  ACanvas.Pen.Color := LineColor;
+  ACanvas.Pen.Style := psSolid;
+  if FBackground = clNone then
+    ACanvas.Brush.Style := bsClear
+  else
+  begin
+    ACanvas.Brush.Style := bsSolid;
+    ACanvas.Brush.Color := FBackground;
+  end;
+  case FShape of
+    dbEllipse: ACanvas.Ellipse(RectPixels);
+    dbRectangle: ACanvas.Rectangle(RectPixels);
+    dbLine:
+      begin
+        ACanvas.MoveTo(RectPixels.TopLeft.X, RectPixels.TopLeft.Y);
+        ACanvas.LineTo(RectPixels.BottomRight.X, RectPixels.BottomRight.Y);
+      end;
+  end;
+end;
+
+procedure TDesignBoxItemShape.SaveToJson(AJson: TJsonObject);
+begin
+  inherited;
+  case FShape of
+    dbEllipse   : AJson.S['shape'] := 'ellipse';
+    dbRectangle : AJson.S['shape'] := 'rectangle';
+    dbLine      : AJson.S['shape'] := 'line';
+  end;
+  AJson.I['bg_color'] := FBackground;
+  AJson.I['line_color'] := FLineColor;
+end;
+
+procedure TDesignBoxItemShape.SetBackground(const Value: TColor);
+begin
+  if FBackground <> Value then
+  begin
+    FBackground := Value;
+    FDesignBox.Redraw;
+  end;
+end;
+
+procedure TDesignBoxItemShape.SetLineColor(const Value: TColor);
+begin
+  if FLineColor <> Value then
+  begin
+    FLineColor := Value;
+    FDesignBox.Redraw;
+  end;
 end;
 
 end.

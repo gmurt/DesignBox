@@ -32,6 +32,8 @@ type
     N1: TMenuItem;
     actDelete: TAction;
     Delete1: TMenuItem;
+    Button6: TButton;
+    Button7: TButton;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -44,6 +46,8 @@ type
     procedure actSendToBackExecute(Sender: TObject);
     procedure PopupMenu1Popup(Sender: TObject);
     procedure actDeleteExecute(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
+    procedure Button7Click(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords(AItem: TDesignBoxBaseItem);
@@ -104,6 +108,16 @@ end;
 procedure TfrmMain.Button5Click(Sender: TObject);
 begin
   DesignBox1.Clear;
+end;
+
+procedure TfrmMain.Button6Click(Sender: TObject);
+begin
+  DesignBox1.Items.AddRectangle(20, 20, 40, 40, clBlack, clYellow);
+end;
+
+procedure TfrmMain.Button7Click(Sender: TObject);
+begin
+  DesignBox1.Items.AddEllipse(20, 20, 40, 40, clBlack, clSkyBlue);
 end;
 
 procedure TfrmMain.DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
