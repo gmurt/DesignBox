@@ -585,8 +585,8 @@ begin
     AStream.Position := 0;
     AType := AJson.O['img'].S['type'].ToLower;
     AImg := nil;
-    if AType = TPngImage.Classme.Name.ToLower then AImg := TPngImage.Create;
-    if AType = TBitmap.ClassNaToLower then AImg := TBitmap.Create;
+    if AType = TPngImage.ClassName.ToLower then AImg := TPngImage.Create;
+    if AType = TBitmap.ClassName.ToLower then AImg := TBitmap.Create;
     if AType = TJPEGImage.ClassName.ToLower then AImg := TJPEGImage.Create;
     if AImg <> nil then
     begin
