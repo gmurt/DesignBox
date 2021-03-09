@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'frmMain'
-  ClientHeight = 369
-  ClientWidth = 570
+  ClientHeight = 434
+  ClientWidth = 669
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 73
     Width = 8
-    Height = 288
+    Height = 353
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -26,8 +26,8 @@ object frmMain: TfrmMain
   end
   object Bevel2: TBevel
     Left = 0
-    Top = 361
-    Width = 570
+    Top = 426
+    Width = 669
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -36,10 +36,10 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 562
+    Left = 661
     Top = 73
     Width = 8
-    Height = 288
+    Height = 353
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -49,7 +49,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 65
-    Width = 570
+    Width = 669
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,8 +60,8 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 73
-    Width = 554
-    Height = 288
+    Width = 653
+    Height = 353
     Align = alClient
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
@@ -74,14 +74,16 @@ object frmMain: TfrmMain
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 570
+    Width = 669
     Height = 65
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitLeft = -72
+    ExplicitTop = -6
     object Image1: TImage
-      Left = 424
-      Top = 0
+      Left = 320
+      Top = 9
       Width = 41
       Height = 41
       Picture.Data = {
@@ -152,5 +154,32 @@ object frmMain: TfrmMain
       TabOrder = 1
       OnClick = Button2Click
     end
+    object Button3: TButton
+      Left = 489
+      Top = 16
+      Width = 83
+      Height = 25
+      Caption = 'Save'
+      TabOrder = 2
+      OnClick = Button3Click
+    end
+    object Button5: TButton
+      Left = 367
+      Top = 16
+      Width = 83
+      Height = 25
+      Caption = 'Clear'
+      TabOrder = 3
+      OnClick = Button5Click
+    end
+  end
+  object Button4: TButton
+    Left = 578
+    Top = 16
+    Width = 83
+    Height = 25
+    Caption = 'Load'
+    TabOrder = 1
+    OnClick = Button4Click
   end
 end

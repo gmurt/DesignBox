@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, System.SysUtils, System.Classes, Vcl.Controls, System.Types, System.Generics.Collections,
-  Graphics;
+  Graphics, JsonDataObjects;
 
 type
   TDesignBox = class;
@@ -12,14 +12,19 @@ type
 
   TDesignBoxSelectItemEvent = procedure(Sender: TObject; AItem: TDesignBoxBaseItem) of object;
 
+  TDesignFont = class(TFont)
+  public
+    procedure SaveToJson(AJson: TJsonObject);
+    procedure LoadFromJson(AJson: TJsonObject);
+  end;
+
   TDesignBoxBaseItem = class
   private
     FDesignBox: TDesignBox;
-    FPositionMM: TRectF;
+    FPositionMM: TPointF;
     FWidthMM: single;
     FHeightMM: single;
     FSelected: Boolean;
-    FCanvasRgn: TRect;
     function RectPixels: TRect; virtual;
     function GetLeftMM: single;
     function GetTopMM: single;
@@ -33,6 +38,8 @@ type
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function PointInRgn(x, y: integer): Boolean;
+    procedure SaveToJson(AJson: TJsonObject); virtual;
+    procedure LoadFromJson(AJson: TJsonObject); virtual;
     property Selected: Boolean read FSelected write SetSelectedItem;
     property LeftMM: single read GetLeftMM write SetLeftMM;
     property TopMM: single read GetTopMM write SetTopMM;
@@ -41,7 +48,7 @@ type
   TDesignBoxItemText = class(TDesignBoxBaseItem)
   private
     FText: string;
-    FFont: TFont;
+    FFont: TDesignFont;
     procedure DoFontChange(Sender: TObject);
     procedure SetText(const AText: string);
     function GetFont: TFont;
@@ -52,6 +59,8 @@ type
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
+    procedure SaveToJson(AJson: TJsonObject); override;
+    procedure LoadFromJson(AJson: TJsonObject); override;
     property Text: string read FText write SetText;
     property Font: TFont read GetFont write SetFont;
   end;
@@ -65,6 +74,8 @@ type
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
+    procedure SaveToJson(AJson: TJsonObject); override;
+    procedure LoadFromJson(AJson: TJsonObject); override;
     property Graphic: TPicture read FGraphic write SetGraphic;
   end;
 
@@ -78,6 +89,8 @@ type
     function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
+    procedure LoadFromJson(AJson: TJsonObject);
+    procedure SaveToJson(AJson: TJsonObject);
     property SelectedItem: TDesignBoxBaseItem read GetSelectedItem write SetSelectedItem;
   end;
 
@@ -102,6 +115,11 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure Clear;
+    procedure SaveToStream(AStream: TStream);
+    procedure LoadFromStream(AStream: TStream);
+    procedure SaveToFile(AFilename: string);
+    procedure LoadFromFile(AFilename: string);
     property Items: TDesignBoxItemList read FItems;
     property SelectedItem: TDesignBoxBaseItem read FSelectedItem write SetSelectedItem;
   published
@@ -117,12 +135,20 @@ procedure Register;
 
 implementation
 
+uses System.NetEncoding, PngImage, Jpeg;
+
 procedure Register;
 begin
   RegisterComponents('Samples', [TDesignBox]);
 end;
 
 { TDesignBox }
+
+procedure TDesignBox.Clear;
+begin
+  FItems.Clear;
+  Redraw;
+end;
 
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
@@ -137,6 +163,34 @@ begin
   FItems.Free;
   FBuffer.Free;
   inherited;
+end;
+
+procedure TDesignBox.LoadFromFile(AFilename: string);
+var
+  AStream: TMemoryStream;
+begin
+  AStream := TMemoryStream.Create;
+  try
+    AStream.LoadFromFile(AFilename);
+    AStream.Position := 0;
+    LoadFromStream(AStream);
+  finally
+    AStream.Free;
+  end;
+end;
+
+procedure TDesignBox.LoadFromStream(AStream: TStream);
+var
+  AJson: TJsonObject;
+begin
+  AJson := TJsonObject.Create;
+  try
+    AJson.LoadFromStream(AStream);
+    FItems.LoadFromJson(AJson);
+    Redraw;
+  finally
+    AJson.Free;
+  end;
 end;
 
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -201,6 +255,32 @@ begin
   Redraw;
 end;
 
+procedure TDesignBox.SaveToFile(AFilename: string);
+var
+  AStream: TMemoryStream;
+begin
+  AStream := TMemoryStream.Create;
+  try
+    SaveToStream(AStream);
+    AStream.SaveToFile(AFilename);
+  finally
+    AStream.Free;
+  end;
+end;
+
+procedure TDesignBox.SaveToStream(AStream: TStream);
+var
+  AJson: TJsonObject;
+begin
+  AJson := TJsonObject.Create;
+  try
+    FItems.SaveToJson(AJson);
+    AJson.SaveToStream(AStream);
+  finally
+    AJson.Free;
+  end;
+end;
+
 procedure TDesignBox.SetSelectedItem(const Value: TDesignBoxBaseItem);
 var
   AItem: TDesignBoxBaseItem;
@@ -219,7 +299,7 @@ end;
 constructor TDesignBoxItemText.Create(ADesignBox: TDesignBox);
 begin
   inherited Create(ADesignBox);
-  FFont := TFont.Create;
+  FFont := TDesignFont.Create;
   FFont.Size := 16;
   FFont.OnChange := DoFontChange;
 
@@ -258,6 +338,26 @@ begin
   end;
 end;
 
+procedure TDesignBoxItemText.LoadFromJson(AJson: TJsonObject);
+begin
+  inherited;
+  Text := AJson.S['text'];
+
+  FFont.LoadFromJson(AJson.O['font']);
+
+end;
+
+
+
+procedure TDesignBoxItemText.SaveToJson(AJson: TJsonObject);
+begin
+  inherited;
+  AJson.S['text'] := Text;
+
+  FFont.SaveToJson(AJson.O['font']);
+
+end;
+
 procedure TDesignBoxItemText.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
@@ -285,18 +385,18 @@ end;
 
 function TDesignBoxBaseItem.GetLeftMM: single;
 begin
-  Result := FPositionMM.Left;
+  Result := FPositionMM.X;
 end;
 
 function TDesignBoxBaseItem.GetTopMM: single;
 begin
-  Result := FPositionMM.Top;
+  Result := FPositionMM.Y;
 end;
 
 procedure TDesignBoxBaseItem.OffsetByPixels(X, Y: integer);
 begin
-  FPositionMM.Left := FPositionMM.Left + ((x / 96) * 25.4);
-  FPositionMM.Top := FPositionMM.Top + ((y / 96) * 25.4);
+  FPositionMM.X := FPositionMM.X + ((x / 96) * 25.4);
+  FPositionMM.Y := FPositionMM.Y + ((y / 96) * 25.4);
   Changed;
 end;
 
@@ -307,15 +407,32 @@ end;
 
 function TDesignBoxBaseItem.RectPixels: TRect;
 begin
-  Result.Left := Round((96 / 25.4) *FPositionMM.Left);
-  Result.Top := Round((96 / 25.4) *FPositionMM.Top);
-  Result.Right := Round(((FPositionMM.Left+FWidthMM) / 25.4) * 96);
-  Result.Bottom := Round(((FPositionMM.Top + FHeightMM) / 25.4) * 96);
+  Result.Left := Round((96 / 25.4) *FPositionMM.X);
+  Result.Top := Round((96 / 25.4) *FPositionMM.Y);
+  Result.Right := Round(((FPositionMM.X+FWidthMM) / 25.4) * 96);
+  Result.Bottom := Round(((FPositionMM.Y + FHeightMM) / 25.4) * 96);
+end;
+
+procedure TDesignBoxBaseItem.LoadFromJson(AJson: TJsonObject);
+begin
+  FPositionMM.X := AJson.F['x'];
+  FPositionMM.Y := AJson.F['y'];
+  FWidthMM := AJson.F['width'];
+  FHeightMM := AJson.F['height'];
+end;
+
+procedure TDesignBoxBaseItem.SaveToJson(AJson: TJsonObject);
+begin
+  AJson.S['obj'] := ClassName;
+  AJson.F['x'] := FPositionMM.X;
+  AJson.F['y'] := FPositionMM.Y;
+  AJson.F['width'] := FWidthMM;
+  AJson.F['height'] := FHeightMM;
 end;
 
 procedure TDesignBoxBaseItem.SetLeftMM(const Value: single);
 begin
-  FPositionMM.Left := Value;
+  FPositionMM.X := Value;
 end;
 
 procedure TDesignBoxBaseItem.SetSelectedItem(const Value: Boolean);
@@ -329,7 +446,7 @@ end;
 
 procedure TDesignBoxBaseItem.SetTopMM(const Value: single);
 begin
-  FPositionMM.Top := Value;
+  FPositionMM.Y := Value;
 end;
 
 { TDesignBoxItemList }
@@ -389,6 +506,45 @@ begin
   end;
 end;
 
+procedure TDesignBoxItemList.LoadFromJson(AJson: TJsonObject);
+var
+  AItems: TJsonArray;
+  AObj: TJsonObject;
+  AObjName: string;
+  AItem: TDesignBoxBaseItem;
+begin
+  Clear;
+  AItems := AJson.A['items'];
+  for AObj in AItems do
+  begin
+    AItem := nil;
+    AObjName := AObj.S['obj'].ToLower;
+    if AObjName = TDesignBoxItemText.ClassName.ToLower then AItem := TDesignBoxItemText.Create(FDesignBox);
+    if AObjName = TDesignBoxItemGraphic.ClassName.ToLower then AItem := TDesignBoxItemGraphic.Create(FDesignBox);
+
+    if AItem <> nil then
+    begin
+      AItem.LoadFromJson(AObj);
+      Add(AItem);
+    end;
+  end;
+end;
+
+procedure TDesignBoxItemList.SaveToJson(AJson: TJsonObject);
+var
+  AItems: TJsonArray;
+  AObj: TJsonObject;
+  AItem: TDesignBoxBaseItem;
+begin
+  AItems := AJson.A['items'];
+  for AItem in Self do
+  begin
+    AObj := TJsonObject.Create;
+    AItem.SaveToJson(AObj);
+    AItems.Add(AObj);
+  end;
+end;
+
 procedure TDesignBoxItemList.SetSelectedItem(const Value: TDesignBoxBaseItem);
 var
   AItem: TDesignBoxBaseItem;
@@ -413,6 +569,36 @@ begin
   inherited;
 end;
 
+procedure TDesignBoxItemGraphic.LoadFromJson(AJson: TJsonObject);
+var
+  AStream: TMemoryStream;
+  AEncoded: TStringStream;
+  AType: string;
+  AImg: TGraphic;
+begin
+  inherited;
+  AStream := TMemoryStream.Create;
+  AEncoded := TStringStream.Create(AJson.O['img'].S['data']);
+  try
+    AEncoded.Position := 0;
+    TNetEncoding.Base64.Decode(AEncoded, AStream);
+    AStream.Position := 0;
+    AType := AJson.O['img'].S['type'].ToLower;
+    AImg := nil;
+    if AType = TPngImage.Classme.Name.ToLower then AImg := TPngImage.Create;
+    if AType = TBitmap.ClassNaToLower then AImg := TBitmap.Create;
+    if AType = TJPEGImage.ClassName.ToLower then AImg := TJPEGImage.Create;
+    if AImg <> nil then
+    begin
+      AImg.LoadFromStream(AStream);
+      FGraphic.Assign(AImg);
+    end;
+  finally
+    AStream.Free;
+    AEncoded.Free;
+  end;
+end;
+
 procedure TDesignBoxItemGraphic.PaintToCanvas(ACanvas: TCanvas);
 begin
   // calculate width/height...
@@ -427,9 +613,45 @@ begin
   end;
 end;
 
+procedure TDesignBoxItemGraphic.SaveToJson(AJson: TJsonObject);
+var
+  AStream: TMemoryStream;
+  AEncoded: TStringStream;
+begin
+  inherited;
+  AStream := TMemoryStream.Create;
+  AEncoded := TStringStream.Create;
+  try
+    FGraphic.SaveToStream(AStream);
+    AStream.Position := 0;
+    TNetEncoding.Base64.Encode(AStream, AEncoded);
+    AJson.O['img'].S['type'] := FGraphic.Graphic.ClassName;
+    AJson.O['img'].S['data'] := AEncoded.DataString;
+  finally
+    AStream.Free;
+    AEncoded.Free;
+  end;
+end;
+
 procedure TDesignBoxItemGraphic.SetGraphic(const Value: TPicture);
 begin
   FGraphic.Assign(Value);
+end;
+
+{ TDesignFont }
+
+procedure TDesignFont.LoadFromJson(AJson: TJsonObject);
+begin
+  Name := AJson.S['name'];
+  Size := AJson.I['size'];
+  Color := AJson.I['color'];
+end;
+
+procedure TDesignFont.SaveToJson(AJson: TJsonObject);
+begin
+  AJson.S['name'] := Name;
+  AJson.I['size'] := Size;
+  AJson.I['color'] := Color;
 end;
 
 end.

@@ -20,12 +20,19 @@ type
     Button2: TButton;
     Label1: TLabel;
     Label2: TLabel;
+    Button3: TButton;
+    Button4: TButton;
+    Button5: TButton;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
     procedure DesignBox1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
   private
+    function AppDir: string;
     procedure UpdateItemCoords(AItem: TDesignBoxBaseItem);
     { Private declarations }
   public
@@ -40,6 +47,11 @@ implementation
 
 {$R *.dfm}
 
+function TfrmMain.AppDir: string;
+begin
+  Result := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)));
+end;
+
 procedure TfrmMain.Button1Click(Sender: TObject);
 begin
   DesignBox1.Items.AddText(20, 20, 'Some Text');
@@ -48,6 +60,21 @@ end;
 procedure TfrmMain.Button2Click(Sender: TObject);
 begin
   DesignBox1.Items.AddGraphic(20, 20, Image1.Picture.Graphic);
+end;
+
+procedure TfrmMain.Button3Click(Sender: TObject);
+begin
+  DesignBox1.SaveToFile(AppDir+'data.json');
+end;
+
+procedure TfrmMain.Button4Click(Sender: TObject);
+begin
+  DesignBox1.LoadFromFile(AppDir+'data.json');
+end;
+
+procedure TfrmMain.Button5Click(Sender: TObject);
+begin
+  DesignBox1.Clear;
 end;
 
 procedure TfrmMain.DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
