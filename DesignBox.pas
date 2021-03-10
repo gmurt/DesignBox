@@ -192,7 +192,7 @@ type
     function AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
     function AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
     function AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
-    function Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+    function Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxBaseItem; overload;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
     property DesignBox: TDesignBox read fDesignBox;
 
@@ -860,7 +860,7 @@ begin
   FDesignBox.Redraw;
 end;  }
 
-function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxBaseItem;
 begin
   result := AClass.Create(FDesignBox);
   Result.LeftMM := ALeftMM;
