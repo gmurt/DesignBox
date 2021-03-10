@@ -253,7 +253,7 @@ procedure Register;
 
 implementation
 
-uses System.NetEncoding, PngImage, Jpeg, Math;
+uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes;
 
 const
   C_HIGHLIGHT_COLOR = clHotlight;
@@ -651,7 +651,7 @@ procedure TDesignBoxItemText.LoadFromJson(AJson: TJsonObject);
 begin
   inherited;
   Text := AJson.S['text'];
-  FBrush.Color := AJson.I['bg_color'];
+  FBrush.LoadFromJson(AJson.O['brush']);
   FFont.LoadFromJson(AJson.O['font']);
   FPen.LoadFromJson(AJson.O['pen']);
 end;
