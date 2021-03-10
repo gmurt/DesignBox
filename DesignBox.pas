@@ -1,5 +1,7 @@
 unit DesignBox;
 
+
+
 { TODO 1 : Bug - text background colors not drawing reliably - seem to depend on the color of adjacent items in the list }
 { TODO 3 : Editable text items - no keyboard events on TGraphicControl - maybe need to inherit from TWinControl and add our own Canvas - or just ignore and go with a "property sheet" UI paradigm ? }
 { TODO 1 : Lines - aka two point selection) }
@@ -14,11 +16,34 @@ interface
 
 uses
   Windows, Messages, System.SysUtils, System.Classes, Vcl.Controls, System.Types, System.Generics.Collections,
-  Graphics, JsonDataObjects;
+  Graphics, JsonDataObjects, System.Generics.Defaults;
 
 type
   TDesignBox = class;
   TDesignBoxBaseItem = class;
+
+  IBrushObject = interface
+    ['{66B92A59-B773-4DE2-97DF-34CA29245A0E}']
+    function GetBrush: TBrush;
+    procedure SetBrush(const Value: TBrush);
+    property Brush: TBrush read GetBrush write SetBrush;
+  end;
+
+  IFontObject = interface
+    ['{29E2758B-E873-4E77-971D-930588E43164}']
+    function GetFont: TFont;
+    procedure SetFont(const Value: TFont);
+    property Font: TFont read GetFont write SetFont;
+  end;
+
+  IPenObject = interface
+    ['{09E70A1C-6C2D-4BDE-8D1C-3311B186F411}']
+    function GetPen: TPen;
+    procedure SetPen(const Value: TPen);
+    property Pen: TPen read GetPen write SetPen;
+  end;
+
+
 
   TDesignBoxSelectItemEvent = procedure(Sender: TObject; AItem: TDesignBoxBaseItem) of object;
 
@@ -28,7 +53,19 @@ type
     procedure LoadFromJson(AJson: TJsonObject);
   end;
 
-  TDesignBoxBaseItem = class
+  TDesignBrush = class(TBrush)
+  public
+    procedure SaveToJson(AJson: TJsonObject);
+    procedure LoadFromJson(AJson: TJsonObject);
+  end;
+
+  TDesignPen = class(TPen)
+  public
+    procedure SaveToJson(AJson: TJsonObject);
+    procedure LoadFromJson(AJson: TJsonObject);
+  end;
+
+  TDesignBoxBaseItem = class(TSingletonImplementation)
   private
     FDesignBox: TDesignBox;
     FPositionMM: TPointF;
@@ -48,27 +85,32 @@ type
     procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
+    destructor Destroy; override;
     function PointInRgn(x, y: integer): Boolean;
     function RectsIntersect(ARect: TRect): Boolean;
     procedure SaveToJson(AJson: TJsonObject); virtual;
     procedure LoadFromJson(AJson: TJsonObject); virtual;
-    procedure SendToBack;
-    procedure BringToFront;
     property Selected: Boolean read FSelected write SetSelectedItem;
     property LeftMM: single read GetLeftMM write SetLeftMM;
     property TopMM: single read GetTopMM write SetTopMM;
   end;
 
-  TDesignBoxItemText = class(TDesignBoxBaseItem)
+  TDesignBoxItemText = class(TDesignBoxBaseItem, IBrushObject, IFontObject, IPenObject)
   private
     FText: string;
     FFont: TDesignFont;
-    FBackground: TColor;
-    procedure DoFontChange(Sender: TObject);
-    procedure SetText(const AText: string);
+    FBrush: TDesignBrush;
+    FPen: TDesignPen;
     function GetFont: TFont;
+    function GetBrush: TBrush;
+    function GetPen: TPen;
+    procedure DoFontChange(Sender: TObject);
+    procedure DoBrushChange(Sender: TObject);
+    procedure DoPenChange(Sender: TObject);
+    procedure SetText(const AText: string);
     procedure SetFont(const Value: TFont);
-    procedure SetBackground(const Value: TColor);
+    procedure SetBrush(const Value: TBrush);
+    procedure SetPen(const Value: TPen);
   protected
     procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
@@ -78,7 +120,8 @@ type
     procedure LoadFromJson(AJson: TJsonObject); override;
     property Text: string read FText write SetText;
     property Font: TFont read GetFont write SetFont;
-    property BackgroundColor: TColor read FBackground write SetBackground default clWhite;
+    property Brush: TBrush read GetBrush write SetBrush;
+    property Pen: TPen read GetPen write SetPen;
   end;
 
   TDragHandlePos = (dhTopLeft,dhTopRight,dhBottomRight,dhBottomLeft);  // clockwise from (0,0)
@@ -88,8 +131,8 @@ type
   TDesignBoxItemSizable = class(TDesignBoxBaseItem)
   private
     fSelectHandles: TDragHandleRectArray;
-    fIsDraggingHandle: boolean;      // is user dragging via a select handle?
-    fSelectedHandle: TDragHandlePos; // if so which one ?
+    //fIsDraggingHandle: boolean;      // is user dragging via a select handle?
+    //fSelectedHandle: TDragHandlePos; // if so which one ?
   protected
     procedure DrawSelectedRect(ACanvas: TCanvas); override;
   public
@@ -99,22 +142,24 @@ type
 
   TDbShape = (dbEllipse, dbRectangle, dbLine);
 
-  TDesignBoxItemShape = class(TDesignBoxItemSizable)
+  TDesignBoxItemShape = class(TDesignBoxItemSizable, IBrushObject, IPenObject)
   private
     FShape: TdbShape;
-    FBackground: TColor;
-    FLineColor: TColor;
-    procedure SetLineColor(const Value: TColor);
+    FBrush: TDesignBrush;
+    FPen: TDesignPen;
+    function GetBrush: TBrush;
+    function GetPen: TPen;
+    procedure SetBrush(const Value: TBrush);
+    procedure SetPen(const Value: TPen);
   protected
-    procedure SetBackground(const Value: TColor);
     procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
     procedure SaveToJson(AJson: TJsonObject); override;
     procedure LoadFromJson(AJson: TJsonObject); override;
-    property LineColor: TColor read FLineColor write SetLineColor default clBlack;
-    property BackgroundColor: TColor read FBackground write SetBackground default clWhite;
+    property Brush: TBrush read GetBrush write SetBrush;
+    property Pen: TPen read GetPen write SetPen;
   end;
 
   TDesignBoxItemGraphic = class(TDesignBoxItemSizable)
@@ -134,24 +179,20 @@ type
   TDesignBoxItemList = class(TObjectList<TDesignBoxBaseItem>)
   private
     FDesignBox: TDesignBox;
-    function GetSelectedItem: TDesignBoxBaseItem;
-    procedure SetSelectedItem(const Value: TDesignBoxBaseItem);
     function GetSelectedCount: integer;
-    function AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+    function AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
-    function AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
-    function AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
-    function AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor: TColor): TDesignBoxItemShape;
+    function AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+    function AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+    function AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
-    procedure BringToFront(AObj: TDesignBoxBaseItem);
-    procedure SendToBack(AObj: TDesignBoxBaseItem);
+
     procedure LoadFromJson(AJson: TJsonObject);
     procedure SaveToJson(AJson: TJsonObject);
     procedure DeleteSelected;
-    property SelectedItem: TDesignBoxBaseItem read GetSelectedItem write SetSelectedItem;
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
   end;
@@ -159,13 +200,23 @@ type
   TDesignBox = class(TGraphicControl)
   private
     FItems: TDesignBoxItemList;
-    FSelectedItem: TDesignBoxBaseItem;
+    FSelectedItems: TDesignBoxItemList;
     FDragging: Boolean;
     FMouseDownPos: TPoint;
     FMouseXY: TPoint;
     FBuffer: TBitmap;
     FOnSelectItem: TDesignBoxSelectItemEvent;
-    procedure SetSelectedItem(const Value: TDesignBoxBaseItem);
+    FBrush: TBrush;
+    FFont: TFont;
+    FPen: TPen;
+    procedure OnBrushChanged(Sender: TObject);
+    procedure OnFontChanged(Sender: TObject);
+    procedure OnPenChanged(Sender: TObject);
+
+    function GetSelectedItems: TDesignBoxItemList;
+    procedure SetBrush(const Value: TBrush);
+    procedure SetFont(const Value: TFont);
+    procedure SetPen(const Value: TPen);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -184,8 +235,11 @@ type
     procedure LoadFromFile(AFilename: string);
     procedure BringToFront;
     procedure SendToBack;
+    property Brush: TBrush read FBrush write SetBrush;
+    property Font: TFont read FFont write SetFont;
+    property Pen: TPen read FPen write SetPen;
     property Items: TDesignBoxItemList read FItems;
-    property SelectedItem: TDesignBoxBaseItem read FSelectedItem write SetSelectedItem;
+    property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
   published
     property Align;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
@@ -216,11 +270,12 @@ procedure TDesignBox.BringToFront;
 var
   AItem: TDesignBoxBaseItem;
 begin
-  for AItem in FItems do
+  for AItem in SelectedItems do
   begin
-    if AItem.Selected then
-      AItem.BringToFront;
+    FItems.Extract(AItem);
+    FItems.Add(AItem);
   end;
+  Redraw;
 end;
 
 procedure TDesignBox.Clear;
@@ -233,15 +288,40 @@ constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
   FBuffer := TBitmap.Create;
+  FBrush := TBrush.Create;
+  FFont := TFont.Create;
+  FPen := TPen.Create;
   FItems := TDesignBoxItemList.Create(Self);
+  FSelectedItems := TDesignBoxItemList.Create(Self);
+  FSelectedItems.OwnsObjects := False;
   FBuffer.SetSize(Width, Height);
+  FBrush.OnChange := OnBrushChanged;
+  FFont.OnChange := OnFontChanged;;
+  FPen.OnChange := OnPenChanged;
 end;
 
 destructor TDesignBox.Destroy;
 begin
   FItems.Free;
   FBuffer.Free;
+  FSelectedItems.Free;
+  FFont.Free;
+  FBrush.Free;
+  FPen.Free;
   inherited;
+end;
+
+function TDesignBox.GetSelectedItems: TDesignBoxItemList;
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  Result := FSelectedItems;
+  FSelectedItems.Clear;
+  for AItem in FItems do
+  begin
+    if AItem.Selected then
+      Result.Add(AItem);
+  end;
 end;
 
 procedure TDesignBox.LoadFromFile(AFilename: string);
@@ -275,22 +355,34 @@ end;
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   AItem: TDesignBoxBaseItem;
+  ADeselectOthers: Boolean;
 begin
   inherited;
+  ADeselectOthers := True;
+
   FMouseDownPos := Point(X, Y);
   AItem := FItems.ItemAtPos(x, y);
-  if AItem = nil then
-    SelectedItem := nil
-  else
+  if (ssShift in Shift) then ADeselectOthers := False;
+  if (AItem <> nil) and (AItem.Selected) then ADeselectOthers := False;
+
+
+  if ADeselectOthers then FItems.DeselectAll;
+
+  if (AItem <> nil) then
   begin
-    if (AItem.Selected = False) then
-      SelectedItem := AItem;
+    case (ssShift in Shift) of
+      True: AItem.Selected := not AItem.Selected;
+      False: AItem.Selected := True;
+    end;
   end;
+
+
+
 
   FDragging := True;
   FMouseXY := Point(X, Y);
-  if (SelectedItem <> nil) and (Assigned(FOnSelectItem)) then
-    FOnSelectItem(Self, SelectedItem);
+  if (AItem <> nil) and (AItem.Selected) and (Assigned(FOnSelectItem)) then
+    FOnSelectItem(Self, AItem);
 end;
 
 procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -298,7 +390,7 @@ var
   AItem: TDesignBoxBaseItem;
 begin
   inherited;
-  if (FDragging) and (FItems.SelectedItem <> nil) then
+  if (FDragging) and (FItems.SelectedCount > 0) then
   begin
     for AItem in FItems do
     begin
@@ -317,9 +409,10 @@ var
   AItem: TDesignBoxBaseItem;
 begin
   inherited;
-  if (FDragging) and (FItems.SelectedItem = nil) then
+  if (FDragging) and (FItems.SelectedCount = 0) then
   begin
-    ADragArea := Rect(FMouseDownPos.X, FMouseDownPos.Y, X, Y);
+    ADragArea := Rect(Min(FMouseDownPos.X, X), Min(FMouseDownPos.Y, Y), Max(FMouseDownPos.X, X), Max(FMouseDownPos.Y, Y));
+    if (ADragArea.Width > 4) and (ADragArea.Height > 4) then
     for AItem in FItems do
     begin
       AItem.Selected := AItem.RectsIntersect(ADragArea);
@@ -330,6 +423,45 @@ begin
   Invalidate;
 end;
 
+procedure TDesignBox.OnBrushChanged(Sender: TObject);
+var
+  AItem: TDesignBoxBaseItem;
+  AIntf: IBrushObject;
+begin
+  for AItem in SelectedItems do
+  begin
+    if Supports(AItem, IBrushObject, AIntf) then
+      AIntf.Brush.Assign(FBrush);
+  end;
+  Redraw;
+end;
+
+procedure TDesignBox.OnFontChanged(Sender: TObject);
+var
+  AItem: TDesignBoxBaseItem;
+  AIntf: IFontObject;
+begin
+  for AItem in SelectedItems do
+  begin
+    if Supports(AItem, IFontObject, AIntf) then
+      AIntf.Font.Assign(FFont);
+  end;
+  Redraw;
+end;
+
+procedure TDesignBox.OnPenChanged(Sender: TObject);
+var
+  AItem: TDesignBoxBaseItem;
+  AIntf: IPenObject;
+begin
+  for AItem in SelectedItems do
+  begin
+    if Supports(AItem, IPenObject, AIntf) then
+      AIntf.Pen.Assign(FPen);
+  end;
+  Redraw;
+end;
+
 procedure TDesignBox.Paint;
 var
   ARect: TRect;
@@ -338,7 +470,8 @@ begin
   if (FBuffer.Width = 0) then
     Redraw;
   Canvas.Draw(0, 0, FBuffer);
-  if (FDragging) and (FItems.SelectedItem = nil) then
+
+  if (FDragging) and (FItems.SelectedCount = 0) then
   begin
     ARect := Rect(FMouseDownPos.X, FMouseDownPos.Y, FMouseXY.X, FMouseXY.Y);
     Canvas.Pen.Style := psDot;
@@ -354,10 +487,14 @@ procedure TDesignBox.Redraw;
 var
   AItem: TDesignBoxBaseItem;
 begin
+  //FBuffer.Free;
+  //FBuffer := TBitmap.Create;
   FBuffer.SetSize(Width, Height);
   FBuffer.Canvas.Brush.Color := clWhite;
+  FBuffer.Canvas.Brush.Style := bsSolid;
   FBuffer.Canvas.Pen.Color := clBlack;
   FBuffer.Canvas.Rectangle(ClientRect);
+  //FBuffer.Canvas.Brush.Style := bsClear;
   if FItems.Count > 0 then
   begin
     for AItem in FItems do
@@ -408,17 +545,28 @@ procedure TDesignBox.SendToBack;
 var
   AItem: TDesignBoxBaseItem;
 begin
-  for AItem in FItems do
+  for AItem in SelectedItems do
   begin
-    if AItem.Selected then
-      AItem.SendToBack;
+    FItems.Extract(AItem);
+    FItems.Insert(0, AItem);
   end;
+  Redraw;
 end;
 
-procedure TDesignBox.SetSelectedItem(const Value: TDesignBoxBaseItem);
+
+procedure TDesignBox.SetBrush(const Value: TBrush);
 begin
-  FSelectedItem := Value;
-  FItems.SelectedItem := FSelectedItem;
+  FBrush.Assign(Value);
+end;
+
+procedure TDesignBox.SetFont(const Value: TFont);
+begin
+  FFont.Assign(Value);
+end;
+
+procedure TDesignBox.SetPen(const Value: TPen);
+begin
+  FPen.Assign(Value);
 end;
 
 procedure TDesignBox.WMEraseBackground(var message: TMessage);
@@ -432,15 +580,32 @@ constructor TDesignBoxItemText.Create(ADesignBox: TDesignBox);
 begin
   inherited Create(ADesignBox);
   FFont := TDesignFont.Create;
+  FBrush := TDesignBrush.Create;
+  FPen := TDesignPen.Create;
+
   FFont.Size := 16;
   FFont.OnChange := DoFontChange;
-  FBackground := clWhite;
+
+  FBrush.Color := clWhite;
+  FBrush.Style := bsSolid;
+  FBrush.OnChange := DoBrushChange;
+
+  FPen.Color := clBlack;
+  FPen.Style := psSolid;
+  FPen.OnChange := DoPenChange;
 end;
 
 destructor TDesignBoxItemText.Destroy;
 begin
   inherited;
   FFont.Free;
+  FBrush.Free;
+  FPen.Free;
+end;
+
+procedure TDesignBoxItemText.DoBrushChange(Sender: TObject);
+begin
+  Changed;
 end;
 
 procedure TDesignBoxItemText.DoFontChange(Sender: TObject);
@@ -448,28 +613,36 @@ begin
   Changed;
 end;
 
+procedure TDesignBoxItemText.DoPenChange(Sender: TObject);
+begin
+  Changed;
+end;
+
+function TDesignBoxItemText.GetBrush: TBrush;
+begin
+  Result := FBrush;
+end;
+
 function TDesignBoxItemText.GetFont: TFont;
 begin
   Result := FFont;
 end;
 
+function TDesignBoxItemText.GetPen: TPen;
+begin
+  Result := FPen;
+end;
+
 procedure TDesignBoxItemText.PaintToCanvas(ACanvas: TCanvas);
 begin
   ACanvas.Font.Assign(FFont);
+  ACanvas.Brush.Assign(FBrush);
+  ACanvas.Pen.Assign(FPen);
   // calculate width/height...
+
   FWidthMM := (ACanvas.TextWidth(FText) / 96) * 25.4;
   FHeightMM := (ACanvas.TextHeight(FText) / 96) * 25.4;
-  ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
-  ACanvas.Brush.Color := BackgroundColor;
-  ACanvas.Pen.Color := clBlack;
-// -- this is a little buggy
-//  if FBackground = clNone then
-//    ACanvas.Brush.Style := bsClear
-//  else
-//  begin
-//    ACanvas.Brush.Style := bsSolid;
-//    ACanvas.Brush.Color := FBackground;
-//  end;
+  ACanvas.Rectangle(RectPixels);
   ACanvas.Brush.Style := bsClear;
   ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
 end;
@@ -478,8 +651,9 @@ procedure TDesignBoxItemText.LoadFromJson(AJson: TJsonObject);
 begin
   inherited;
   Text := AJson.S['text'];
-  FBackground := AJson.I['bg_color'];
+  FBrush.Color := AJson.I['bg_color'];
   FFont.LoadFromJson(AJson.O['font']);
+  FPen.LoadFromJson(AJson.O['pen']);
 end;
 
 
@@ -488,22 +662,24 @@ procedure TDesignBoxItemText.SaveToJson(AJson: TJsonObject);
 begin
   inherited;
   AJson.S['text'] := Text;
-  AJson.I['bg_color'] := FBackground;
+  FBrush.SaveToJson(AJson.O['brush']);
   FFont.SaveToJson(AJson.O['font']);
+  FPen.SaveToJson(AJson.O['pen']);
 end;
 
-procedure TDesignBoxItemText.SetBackground(const Value: TColor);
+procedure TDesignBoxItemText.SetBrush(const Value: TBrush);
 begin
-  if FBackground <> Value then
-  begin
-    FBackground := Value;
-    Changed;
-  end;
+  FBrush.Assign(Value);
 end;
 
 procedure TDesignBoxItemText.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
+end;
+
+procedure TDesignBoxItemText.SetPen(const Value: TPen);
+begin
+  FPen.Assign(Value);
 end;
 
 procedure TDesignBoxItemText.SetText(const AText: string);
@@ -517,11 +693,6 @@ end;
 
 { TDesignBoxBaseItem }
 
-procedure TDesignBoxBaseItem.BringToFront;
-begin
-  FDesignBox.Items.BringToFront(Self);
-end;
-
 procedure TDesignBoxBaseItem.Changed;
 begin
   FDesignBox.Redraw;
@@ -532,6 +703,11 @@ begin
   inherited Create;
   FDesignBox := ADesignBox;
   FSelected := False;
+end;
+
+destructor TDesignBoxBaseItem.Destroy;
+begin
+  inherited;
 end;
 
 procedure TDesignBoxBaseItem.DrawSelectedRect(ACanvas: TCanvas);
@@ -605,12 +781,12 @@ begin
   AJson.F['width'] := FWidthMM;
   AJson.F['height'] := FHeightMM;
 end;
-
+        {
 procedure TDesignBoxBaseItem.SendToBack;
 begin
   FDesignBox.Items.SendToBack(Self);
 end;
-
+        }
 procedure TDesignBoxBaseItem.SetLeftMM(const Value: single);
 begin
   FPositionMM.X := Value;
@@ -632,17 +808,17 @@ end;
 
 { TDesignBoxItemList }
 
-function TDesignBoxItemList.AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor: TColor): TDesignBoxItemShape;
+function TDesignBoxItemList.AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
 begin
-  Result := AddShape(dbLine, ALeftMM, ATopMM, ARightMM, ABottomMM, ABorderColor, clNone);
+  Result := AddShape(dbLine, ALeftMM, ATopMM, ARightMM, ABottomMM);
 end;
 
-function TDesignBoxItemList.AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+function TDesignBoxItemList.AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
 begin
-  Result := AddShape(dbRectangle, ALeftMM, ATopMM, ARightMM, ABottomMM, ABorderColor, AFillColor);
+  Result := AddShape(dbRectangle, ALeftMM, ATopMM, ARightMM, ABottomMM);
 end;
 
-function TDesignBoxItemList.AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+function TDesignBoxItemList.AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
 begin
   Result := TDesignBoxItemShape.Create(FDesignBox);
   Result.FShape := AShape;
@@ -650,8 +826,10 @@ begin
   Result.TopMM := ATopMM;
   Result.FWidthMM := ARightMM - ALeftMM;
   Result.FHeightMM := ABottomMM - ATopMM;
-  Result.FBackground := AFillColor;
-  Result.LineColor := ABorderColor;
+  Result.Brush.Assign(FDesignBox.Brush);
+  Result.Pen.Assign(FDesignBox.Pen);
+
+
   Add(Result);
   FDesignBox.Redraw;
 end;
@@ -662,21 +840,21 @@ begin
   Result.LeftMM := ALeftMM;
   Result.TopMM := ATopMM;
   Result.Text := AText;
-  Result.BackgroundColor := clNone; // draw transparent for now
+  Result.Brush.Assign(FDesignBox.Brush);
   Add(Result);
   FDesignBox.Redraw;
 end;
-
+    {
 procedure TDesignBoxItemList.BringToFront(AObj: TDesignBoxBaseItem);
 begin
   Extract(AObj);
   Add(AObj);
   FDesignBox.Redraw;
-end;
+end;  }
 
-function TDesignBoxItemList.AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single; ABorderColor, AFillColor: TColor): TDesignBoxItemShape;
+function TDesignBoxItemList.AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
 begin
-  Result := AddShape(dbEllipse, ALeftMM, ATopMM, ARightMM, ABottomMM, ABorderColor, AFillColor);
+  Result := AddShape(dbEllipse, ALeftMM, ATopMM, ARightMM, ABottomMM);
 end;
 
 function TDesignBoxItemList.AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
@@ -721,21 +899,6 @@ begin
   for AItem in Self do
     if AItem.Selected then
       Result := Result + 1;
-end;
-
-function TDesignBoxItemList.GetSelectedItem: TDesignBoxBaseItem;
-var
-  AItem: TDesignBoxBaseItem;
-begin
-  Result := nil;
-  for AItem in Self do
-  begin
-    if AItem.Selected then
-    begin
-      Result := AItem;
-      Exit;
-    end;
-  end;
 end;
 
 function TDesignBoxItemList.ItemAtPos(x, y: integer): TDesignBoxBaseItem;
@@ -789,23 +952,6 @@ begin
     AObj := TJsonObject.Create;
     AItem.SaveToJson(AObj);
     AItems.Add(AObj);
-  end;
-end;
-
-procedure TDesignBoxItemList.SendToBack(AObj: TDesignBoxBaseItem);
-begin
-  Extract(AObj);
-  Insert(0, AObj);
-  FDesignBox.Redraw;
-end;
-
-procedure TDesignBoxItemList.SetSelectedItem(const Value: TDesignBoxBaseItem);
-var
-  AItem: TDesignBoxBaseItem;
-begin
-  for AItem in Self do
-  begin
-    AItem.Selected := AItem = Value;
   end;
 end;
 
@@ -907,13 +1053,26 @@ end;
 constructor TDesignBoxItemShape.Create(ADesignBox: TDesignBox);
 begin
   inherited;
-  FBackground := clWhite;
-  FLineColor := clBlack;
+  FBrush := TDesignBrush.Create;
+  FPen := TDesignPen.Create;
+
 end;
 
 destructor TDesignBoxItemShape.Destroy;
 begin
+  FBrush.Free;
+  FPen.Free;
   inherited;
+end;
+
+function TDesignBoxItemShape.GetBrush: TBrush;
+begin
+  Result := FBrush;
+end;
+
+function TDesignBoxItemShape.GetPen: TPen;
+begin
+  Result := FPen;
 end;
 
 procedure TDesignBoxItemShape.LoadFromJson(AJson: TJsonObject);
@@ -925,21 +1084,16 @@ begin
   if AShape = 'ellipse' then FShape := dbEllipse;
   if AShape = 'rectangle' then FShape := dbRectangle;
   if AShape = 'line' then FShape := dbLine;
-  FBackground := AJson.I['bg_color'];
-  FLineColor := AJson.I['line_color'];
+
+  FBrush.LoadFromJson(AJson.O['brush']);
+  FPen.LoadFromJson(AJson.O['pen']);
 end;
 
 procedure TDesignBoxItemShape.PaintToCanvas(ACanvas: TCanvas);
 begin
-  ACanvas.Pen.Color := LineColor;
-  ACanvas.Pen.Style := psSolid;
-  if FBackground = clNone then
-    ACanvas.Brush.Style := bsClear
-  else
-  begin
-    ACanvas.Brush.Style := bsSolid;
-    ACanvas.Brush.Color := FBackground;
-  end;
+  ACanvas.Pen.Assign(FPen);
+  ACanvas.Brush.Assign(FBrush);
+
   case FShape of
     dbEllipse: ACanvas.Ellipse(RectPixels);
     dbRectangle: ACanvas.Rectangle(RectPixels);
@@ -959,29 +1113,21 @@ begin
     dbRectangle : AJson.S['shape'] := 'rectangle';
     dbLine      : AJson.S['shape'] := 'line';
   end;
-  AJson.I['bg_color'] := FBackground;
-  AJson.I['line_color'] := FLineColor;
+  FBrush.SaveToJson(AJson.O['brush']);
+  FPen.SaveToJson(AJson.O['pen']);
 end;
 
-procedure TDesignBoxItemShape.SetBackground(const Value: TColor);
+procedure TDesignBoxItemShape.SetBrush(const Value: TBrush);
 begin
-  if FBackground <> Value then
-  begin
-    FBackground := Value;
-    FDesignBox.Redraw;
-  end;
-end;
-
-procedure TDesignBoxItemShape.SetLineColor(const Value: TColor);
-begin
-  if FLineColor <> Value then
-  begin
-    FLineColor := Value;
-    FDesignBox.Redraw;
-  end;
+  FBrush.Assign(Value);
 end;
 
 { TDesignBoxItemSelectable }
+
+procedure TDesignBoxItemShape.SetPen(const Value: TPen);
+begin
+  FPen.Assign(Value);
+end;
 
 constructor TDesignBoxItemSizable.Create(ADesignBox: TDesignBox);
 begin
@@ -1004,6 +1150,7 @@ const
   CH_RADIUS = 4; // 16 pixel square grab handlePoints
 begin
   inherited DrawSelectedRect(ACanvas);
+
   if FSelected then
   begin
     aRect := RectPixels;
@@ -1024,6 +1171,36 @@ begin
       ACanvas.Rectangle(handleRect);
     end;
   end;
+end;
+
+{ TDesignBrush }
+
+procedure TDesignBrush.LoadFromJson(AJson: TJsonObject);
+begin
+  Color := AJson.I['color'];
+  Style := TBrushStyle(AJson.I['style']);
+end;
+
+procedure TDesignBrush.SaveToJson(AJson: TJsonObject);
+begin
+  AJson.I['color'] := Color;
+  AJson.I['style'] := Ord(Style);
+end;
+
+{ TDesignPen }
+
+procedure TDesignPen.LoadFromJson(AJson: TJsonObject);
+begin
+  Color := AJson.I['color'];
+  Style := TPenStyle(AJson.I['style']);
+  Width := AJson.I['width'];
+end;
+
+procedure TDesignPen.SaveToJson(AJson: TJsonObject);
+begin
+  AJson.I['color'] := Color;
+  AJson.I['style'] := Ord(Style);
+  AJson.I['width'] := Width;
 end;
 
 end.

@@ -62,7 +62,7 @@ type
     procedure CheckBox1Click(Sender: TObject);
   private
     function AppDir: string;
-    procedure UpdateItemCoords(AItem: TDesignBoxBaseItem);
+    procedure UpdateItemCoords;
     procedure UpdateActionStates;
     { Private declarations }
   public
@@ -99,26 +99,17 @@ end;
 
 procedure TfrmMain.btnBorderColorClick(Sender: TObject);
 begin
-  if dlgBorderColor.Execute and (DesignBox1.SelectedItem is TDesignBoxItemShape) then
-    TDesignBoxItemShape(DesignBox1.SelectedItem).LineColor := dlgBorderColor.color;
+  if dlgBorderColor.Execute then DesignBox1.Pen.Color := dlgBorderColor.Color;
 end;
 
 procedure TfrmMain.btnFillColorClick(Sender: TObject);
 begin
-  if dlgFillColor.Execute and assigned(DesignBox1.SelectedItem) then
-  begin
-    if DesignBox1.SelectedItem is TDesignBoxItemText then
-      TDesignBoxItemText(DesignBox1.SelectedItem).BackgroundColor := dlgFillColor.color
-    else
-    if DesignBox1.SelectedItem is TDesignBoxItemShape then
-      TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor := dlgFillColor.Color
-  end;
+  if (dlgFillColor.Execute) then DesignBox1.Brush.Color := dlgFillColor.Color;
 end;
 
 procedure TfrmMain.btnFontClick(Sender: TObject);
 begin
-  if FontDialog1.execute and (DesignBox1.SelectedItem is TDesignBoxItemText) then
-    TDesignBoxItemText(DesignBox1.SelectedItem).Font.Assign(FontDialog1.Font);
+ if FontDialog1.execute then DesignBox1.Font.Assign(FontDialog1.Font);
 end;
 
 procedure TfrmMain.btnAddTextClick(Sender: TObject);
@@ -146,15 +137,10 @@ end;
 
 procedure TfrmMain.CheckBox1Click(Sender: TObject);
 begin
-  dlgFillColor.Color := clNone;
-  btnFillColor.Enabled := not TCheckBox(Sender).Checked;
-  if assigned(DesignBox1.SelectedItem) then
-  begin
-    if DesignBox1.SelectedItem is TDesignBoxItemText then
-      TDesignBoxItemText(DesignBox1.SelectedItem).BackgroundColor := clNone
-    else
-    if DesignBox1.SelectedItem is TDesignBoxItemShape then
-      TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor := clNone
+  case CheckBox1.Checked of
+    True: DesignBox1.Brush.Style := bsClear;
+    False: DesignBox1.Brush.Style := bsSolid;
+
   end;
 end;
 
@@ -172,7 +158,7 @@ procedure TfrmMain.btnAddRectangleClick(Sender: TObject);
 var
   item: TDesignBoxItemShape;
 begin
-  item := DesignBox1.Items.AddRectangle(20, 20, 40, 40, dlgBorderColor.Color, dlgFillColor.Color);
+  item := DesignBox1.Items.AddRectangle(20, 20, 40, 40);
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -181,24 +167,24 @@ procedure TfrmMain.btnAddEllipseClick(Sender: TObject);
 var
   item: TDesignBoxItemShape;
 begin
-  item := DesignBox1.Items.AddEllipse(20, 20, 40, 40, dlgBorderColor.Color, dlgFillColor.Color);
+  item := DesignBox1.Items.AddEllipse(20, 20, 40, 40);
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
 
 procedure TfrmMain.DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
-  UpdateItemCoords(DesignBox1.SelectedItem);
+  UpdateItemCoords;
 end;
 
 procedure TfrmMain.DesignBox1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 begin
-  UpdateItemCoords(DesignBox1.SelectedItem);
+  UpdateItemCoords;
 end;
 
 procedure TfrmMain.DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
 begin
-  UpdateItemCoords(DesignBox1.SelectedItem);
+  {UpdateItemCoords(DesignBox1.SelectedItem);
   // no selected item = set default fonts/color for next item
   btnFont.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemText);
   btnBorderColor.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemShape) or (DesignBox1.SelectedItem is TDesignBoxItemText); // text can have font color
@@ -213,7 +199,7 @@ begin
     dlgBorderColor.Color := TDesignBoxItemShape(DesignBox1.SelectedItem).LineColor;
     btnBorderColor.Caption := 'Border';
     dlgFillColor.Color := TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor;
-  end;
+  end;  }
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
@@ -235,10 +221,16 @@ begin
   actDelete.Enabled := DesignBox1.Items.SelectedCount > 0;
 end;
 
-procedure TfrmMain.UpdateItemCoords(AItem: TDesignBoxBaseItem);
+procedure TfrmMain.UpdateItemCoords;
 begin
-  if AItem <> nil then
-    StatusBar1.SimpleText := Format('X = %fmm | Y = %fmm' ,[AItem.LeftMM, AItem.TopMM])
+  if DesignBox1.SelectedItems.Count > 1 then
+  begin
+    StatusBar1.SimpleText := 'Multiple items selected';
+    Exit;
+  end;
+
+  if DesignBox1.SelectedItems.Count = 1 then
+      StatusBar1.SimpleText := Format('X = %fmm | Y = %fmm' ,[DesignBox1.SelectedItems[0].LeftMM, DesignBox1.SelectedItems[0].TopMM])
   else
     StatusBar1.SimpleText := 'No items selected';
 end;
