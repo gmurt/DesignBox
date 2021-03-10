@@ -722,6 +722,7 @@ begin
     InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
     ACanvas.Brush.Style := bsClear;
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
+    ACanvas.Pen.Style := psSolid;
     ACanvas.Rectangle(ARect);
   end;
 end;
