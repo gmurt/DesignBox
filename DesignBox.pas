@@ -97,6 +97,8 @@ type
     property HeightMM: single read fHeightMM write fHeightMM;
   end;
 
+  TDesignBoxBaseItemClass = class of TDesignBoxBaseItem;
+
   TDesignBoxItemText = class(TDesignBoxBaseItem, IBrushObject, IFontObject, IPenObject)
   private
     FText: string;
@@ -190,13 +192,16 @@ type
     function AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
     function AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
     function AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+    function Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
+    property DesignBox: TDesignBox read fDesignBox;
 
     procedure LoadFromJson(AJson: TJsonObject);
     procedure SaveToJson(AJson: TJsonObject);
     procedure DeleteSelected;
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
+
   end;
 
   TDesignBox = class(TGraphicControl)
@@ -854,6 +859,15 @@ begin
   Add(AObj);
   FDesignBox.Redraw;
 end;  }
+
+function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+begin
+  result := AClass.Create(FDesignBox);
+  Result.LeftMM := ALeftMM;
+  Result.TopMM := ATopMM;
+  Add(result);
+  FDesignBox.ReDraw;
+end;
 
 function TDesignBoxItemList.AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
 begin
