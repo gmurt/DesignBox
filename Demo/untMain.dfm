@@ -66,10 +66,7 @@ object frmMain: TfrmMain
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
-    ExplicitLeft = 88
-    ExplicitTop = 144
-    ExplicitWidth = 100
-    ExplicitHeight = 41
+    ExplicitTop = 87
   end
   object Panel1: TPanel
     Left = 0
@@ -207,12 +204,22 @@ object frmMain: TfrmMain
       TabOrder = 11
       OnClick = btnLoadClick
     end
-    object Edit1: TEdit
-      Left = 216
+    object txtTextItem: TEdit
+      Left = 201
       Top = 50
-      Width = 232
+      Width = 247
       Height = 23
       TabOrder = 8
+      OnChange = txtTextItemChange
+    end
+    object CheckBox2: TCheckBox
+      Left = 304
+      Top = 23
+      Width = 80
+      Height = 17
+      Caption = 'No Border'
+      TabOrder = 12
+      OnClick = CheckBox2Click
     end
   end
   object StatusBar1: TStatusBar

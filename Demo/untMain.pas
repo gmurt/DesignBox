@@ -40,7 +40,8 @@ type
     dlgBorderColor: TColorDialog;
     dlgFillColor: TColorDialog;
     CheckBox1: TCheckBox;
-    Edit1: TEdit;
+    txtTextItem: TEdit;
+    CheckBox2: TCheckBox;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -60,6 +61,8 @@ type
     procedure btnFillColorClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure CheckBox1Click(Sender: TObject);
+    procedure CheckBox2Click(Sender: TObject);
+    procedure txtTextItemChange(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -116,7 +119,7 @@ procedure TfrmMain.btnAddTextClick(Sender: TObject);
 var
   item: TDesignBoxItemText;
 begin
-  item := DesignBox1.Items.AddText(20, 20, 'Some Text');
+  item := DesignBox1.Items.AddText(20, 20, txtTextItem.text);
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -140,8 +143,14 @@ begin
   case CheckBox1.Checked of
     True: DesignBox1.Brush.Style := bsClear;
     False: DesignBox1.Brush.Style := bsSolid;
-
   end;
+end;
+
+procedure TfrmMain.CheckBox2Click(Sender: TObject);
+const
+  C_STYLES: array[boolean] of TPenStyle = (psSolid, psClear);
+begin
+  DesignBox1.Pen.Style := C_STYLES[CheckBox2.checked];
 end;
 
 procedure TfrmMain.btnLoadClick(Sender: TObject);
@@ -184,6 +193,10 @@ end;
 
 procedure TfrmMain.DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
 begin
+  if AItem is TDesignBoxItemText then
+    txtTextItem.Text := TDesignBoxItemText(AItem).Text
+  else
+    txtTextItem.text := '';
   {UpdateItemCoords(DesignBox1.SelectedItem);
   // no selected item = set default fonts/color for next item
   btnFont.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemText);
@@ -207,11 +220,19 @@ begin
   self.Caption := application.title;
   dlgBorderColor.Color := clWebNavy;
   dlgFillColor.Color := clWebLightSkyBlue;
+  txtTextItem.text := 'Some Text';
 end;
 
 procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
 begin
   UpdateActionStates;
+end;
+
+procedure TfrmMain.txtTextItemChange(Sender: TObject);
+begin
+  if (DesignBox1.SelectedItems.Count = 1) then
+    if DesignBox1.SelectedItems[0] is TDesignBoxItemText then
+      TDesignBoxItemText(DesignBox1.SelectedItems[0]).Text := TEdit(Sender).Text;
 end;
 
 procedure TfrmMain.UpdateActionStates;

@@ -93,6 +93,8 @@ type
     property Selected: Boolean read FSelected write SetSelectedItem;
     property LeftMM: single read GetLeftMM write SetLeftMM;
     property TopMM: single read GetTopMM write SetTopMM;
+    property WidthMM: single read fWidthMM write fWidthMM;
+    property HeightMM: single read fHeightMM write fHeightMM;
   end;
 
   TDesignBoxItemText = class(TDesignBoxBaseItem, IBrushObject, IFontObject, IPenObject)
