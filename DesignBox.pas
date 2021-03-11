@@ -253,6 +253,9 @@ type
     FUndoList: TDesignUndoList;
     FOnChange: TNotifyEvent;
     FShowRulers: Boolean;
+    fRulerBackground: TColor;
+    fRulerForeground: TColor;
+
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -270,6 +273,8 @@ type
     function GetPageWidthMM: integer;
     procedure SetPageHeightMM(const Value: integer);
     procedure SetPageWidthMM(const Value: integer);
+    procedure SetRulerBackground(const Value: TColor);
+    procedure SetRulerForeground(const Value: TColor);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -309,6 +314,8 @@ type
     property OnMouseMove;
     property OnMouseUp;
     property PopupMenu;
+    property RulerBackground: TColor read fRulerBackground write SetRulerBackground default clWhite;
+    property RulerForeground: TColor read fRulerForeground write SetRulerForeground default clBlack;
     property ShowRulers: Boolean read FShowRulers write SetShowRulers default True;
     property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
     property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
@@ -612,26 +619,31 @@ var
   AMm: integer;
   AMarkSize: integer;
   tw, th: integer;
+  tz : TSize;
+const
+  C_BIG_MARK = 10;
+  C_LITTLE_MARK = 5;
 begin
   APxPerMm := 96 / 25.4;
 
 
-  ACanvas.Brush.Color := clWhite;
+  ACanvas.Brush.Color := fRulerBackground;
   ACanvas.Pen.Style := psClear;
   ACanvas.FillRect(Rect(0, 0, Width, FPageOffset.Y));
   ACanvas.FillRect(Rect(0, 0, FPageOffset.X, Height));
   ACanvas.Pen.Style := psSolid;
-  ACanvas.Pen.Color := clBlack;
+  ACanvas.Pen.Color := fRulerForeground;
   ACanvas.Pen.Mode := pmCopy;
   ACanvas.Polyline([Point(0, FPageOffset.Y), Point(Width, FPageOffset.Y)]);
   ACanvas.Polyline([Point(FPageOffset.X, 0), Point(FPageOffset.X, Height)]);
 
+  ACanvas.Font.Color := fRulerForeground;
   AMm := 1;
   while (AMm*APxPerMM) < Width do
   begin
     AMarkSize := 0;
-    if (AMm) mod 2 = 0 then AMarkSize := 5;
-    if (AMm) mod 10 = 0 then AMarkSize := 10;
+    if (AMm) mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
+    if (AMm) mod 10 = 0 then AMarkSize := C_BIG_MARK;
     if AMarkSize > 0 then
     begin
       ACanvas.Polyline([Point(Round(AMm*APxPerMm)+FPageOffset.X, FPageOffset.Y-AMarkSize),
@@ -649,16 +661,17 @@ begin
   while (AMm*APxPerMM) < Height do
   begin
     AMarkSize := 0;
-    if AMm mod 2 = 0 then AMarkSize := 5;
-    if AMm mod 10 = 0 then AMarkSize := 10;
+    if AMm mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
+    if AMm mod 10 = 0 then AMarkSize := C_BIG_MARK;
     if AMarkSize > 0 then
     begin
       ACanvas.Polyline([Point(FPageOffset.X-AMarkSize, Round(AMm*APxPerMm)+FPageOffset.Y),
                         Point(FPageOffset.X, Round(AMm*APxPerMm)+FPageOffset.Y)]);
       if AMarkSize = 10 then
       begin
-        th := ACanvas.TextHeight(AMm.ToString);
-        ACanvas.TextOut(FPageOffset.X-20, (Round(AMm*APxPerMm)+FPageOffset.Y) - (th div 2), AMm.ToString);
+//        th := ACanvas.TextHeight(AMm.ToString);
+        tz := ACanvas.TextExtent(AMm.ToString);
+        ACanvas.TextOut(FPageOffset.X-tz.width - C_LITTLE_MARK, (Round(AMm*APxPerMm)+FPageOffset.Y) - (tz.Height div 2), AMm.ToString);
       end;
     end;
     Inc(AMm);
@@ -864,6 +877,24 @@ end;
 procedure TDesignBox.SetPen(const Value: TPen);
 begin
   FPen.Assign(Value);
+end;
+
+procedure TDesignBox.SetRulerBackground(const Value: TColor);
+begin
+  if fRulerBackground <> Value then
+  begin
+    fRulerBackground := Value;
+    Invalidate;
+  end;
+end;
+
+procedure TDesignBox.SetRulerForeground(const Value: TColor);
+begin
+  if fRulerForeground <> Value then
+  begin
+    fRulerForeground := Value;
+    Invalidate;
+  end;
 end;
 
 procedure TDesignBox.SetShowRulers(const Value: Boolean);

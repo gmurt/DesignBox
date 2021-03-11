@@ -67,6 +67,8 @@ object frmMain: TfrmMain
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
+    RulerBackground = clGray
+    RulerForeground = clWhite
     PageWidthMM = 100
     PageHeightMM = 100
     OnChange = DesignBox1Change
