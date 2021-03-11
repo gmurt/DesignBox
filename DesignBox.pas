@@ -253,7 +253,6 @@ type
     FUndoList: TDesignUndoList;
     FOnChange: TNotifyEvent;
     FShowRulers: Boolean;
-    fDrawCount : integer;
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -303,7 +302,6 @@ type
     procedure SaveSnapShot(aForce: boolean);
     function CanUndo : boolean;
     function CanRedo : boolean;
-    property DrawCount: integer read fDrawCount write fDrawCount;
   published
     property Align;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
@@ -406,7 +404,6 @@ begin
   FBackgroundColor := clWhite;
   FShowRulers := True;
   FUpdating := False;
-  fDrawCount := 0;
   Redraw;
 end;
 
@@ -730,9 +727,6 @@ begin
   //FBuffer.Free;
   //FBuffer := TBitmap.Create;
   ResizeCanvas;
-
-  inc(fDrawCount);
-
 
   FBuffer.Canvas.Brush.Color := BackGroundColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
