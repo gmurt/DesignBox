@@ -47,6 +47,7 @@ type
     Button2: TButton;
     actUndo: TAction;
     actRedo: TAction;
+    CheckBox3: TCheckBox;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -71,6 +72,7 @@ type
     procedure actUndoExecute(Sender: TObject);
     procedure actRedoExecute(Sender: TObject);
     procedure DesignBox1Change(Sender: TObject);
+    procedure CheckBox3Click(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -171,6 +173,11 @@ const
   C_STYLES: array[boolean] of TPenStyle = (psSolid, psClear);
 begin
   DesignBox1.Pen.Style := C_STYLES[CheckBox2.checked];
+end;
+
+procedure TfrmMain.CheckBox3Click(Sender: TObject);
+begin
+  DesignBox1.ShowRulers := CheckBox3.Checked;
 end;
 
 procedure TfrmMain.btnLoadClick(Sender: TObject);

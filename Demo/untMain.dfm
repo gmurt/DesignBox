@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'frmMain'
-  ClientHeight = 466
-  ClientWidth = 933
+  ClientHeight = 632
+  ClientWidth = 725
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 89
     Width = 8
-    Height = 309
+    Height = 475
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -27,8 +27,8 @@ object frmMain: TfrmMain
   end
   object Bevel2: TBevel
     Left = 0
-    Top = 439
-    Width = 933
+    Top = 605
+    Width = 725
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,10 +37,10 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 925
+    Left = 717
     Top = 89
     Width = 8
-    Height = 309
+    Height = 475
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -50,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 81
-    Width = 933
+    Width = 725
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,22 +60,22 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
-    Width = 917
-    Height = 309
+    Width = 709
+    Height = 475
     Align = alClient
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
+    PageWidthMM = 100.099998474121100000
+    PageHeightMM = 100.000000000000000000
     OnChange = DesignBox1Change
     ExplicitTop = 87
-    ExplicitWidth = 653
-    ExplicitHeight = 318
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 933
+    Width = 725
     Height = 81
     Align = alTop
     BevelOuter = bvNone
@@ -228,16 +228,16 @@ object frmMain: TfrmMain
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 447
-    Width = 933
+    Top = 613
+    Width = 725
     Height = 19
     Panels = <>
     SimplePanel = True
   end
   object Panel2: TPanel
     Left = 0
-    Top = 398
-    Width = 933
+    Top = 564
+    Width = 725
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
@@ -257,6 +257,15 @@ object frmMain: TfrmMain
       Height = 25
       Action = actRedo
       TabOrder = 1
+    end
+    object CheckBox3: TCheckBox
+      Left = 192
+      Top = 10
+      Width = 97
+      Height = 17
+      Caption = 'Rulers'
+      TabOrder = 2
+      OnClick = CheckBox3Click
     end
   end
   object PopupMenu1: TPopupMenu

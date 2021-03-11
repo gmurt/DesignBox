@@ -85,7 +85,14 @@ type
     procedure LoadFromJson(AJson: TJsonObject);
   end;
 
-  TDesignBoxBaseItem = class(TSingletonImplementation)
+  TDesignBoxItemInterface = class(TPersistent, IInterface)
+  protected
+    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
+  end;
+
+  TDesignBoxBaseItem = class(TDesignBoxItemInterface)
   private
     FDesignBox: TDesignBox;
     FPositionMM: TPointF;
@@ -245,8 +252,11 @@ type
     FPen: TPen;
     FBackgroundColor: TColor;
     FUpdating: Boolean;
+    FPageOffset: TPoint;
+    FPageSizeMM: TSize;
     FUndoList: TDesignUndoList;
     FOnChange: TNotifyEvent;
+    FShowRulers: Boolean;
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -257,6 +267,13 @@ type
     procedure SetPen(const Value: TPen);
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
+    procedure SetShowRulers(const Value: Boolean);
+    procedure DrawRulers(ACanvas: TCanvas);
+    procedure ResizeCanvas;
+    function GetPageHeightMM: integer;
+    function GetPageWidthMM: integer;
+    procedure SetPageHeightMM(const Value: integer);
+    procedure SetPageWidthMM(const Value: integer);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -275,6 +292,8 @@ type
     procedure LoadFromFile(AFilename: string);
     procedure BringToFront;
     procedure SendToBack;
+    procedure SetPageSize(AWidthMM, AHeightMM: integer); overload;
+    procedure SetPageSize(APageSize: TSize); overload;
     property Brush: TBrush read FBrush write SetBrush;
     property Font: TFont read FFont write SetFont;
     property Pen: TPen read FPen write SetPen;
@@ -282,7 +301,6 @@ type
     property Items: TDesignBoxItemList read FItems;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
     procedure Redraw;
-//    property UndoList: TDesignUndoList read FUndoList;  -- law of demeter #3 - only talk to your immediate neighbours
     procedure Undo;
     procedure Redo;
     procedure SaveSnapShot(aForce: boolean);
@@ -295,6 +313,9 @@ type
     property OnMouseMove;
     property OnMouseUp;
     property PopupMenu;
+    property ShowRulers: Boolean read FShowRulers write SetShowRulers default True;
+    property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
+    property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
@@ -311,6 +332,27 @@ const
 procedure Register;
 begin
   RegisterComponents('Samples', [TDesignBox]);
+end;
+
+
+{ TDesignBoxItemInterface }
+
+function TDesignBoxItemInterface.QueryInterface(const IID: TGUID; out Obj): HResult;
+begin
+  if GetInterface(IID, Obj) then
+    Result := S_OK
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TDesignBoxItemInterface._AddRef: Integer;
+begin
+  Result := -1;
+end;
+
+function TDesignBoxItemInterface._Release: Integer;
+begin
+  Result := -1;
 end;
 
 { TDesignBox }
@@ -356,12 +398,17 @@ begin
   FSelectedItems.OwnsObjects := False;
   FUndoList := TDesignUndoList.Create(Self);
 
-  FBuffer.SetSize(Width, Height);
+  FPageSizeMM.Width := 100;
+  FPageSizeMM.Height := 100;
+
+  ResizeCanvas;
   FBrush.OnChange := OnBrushChanged;
   FFont.OnChange := OnFontChanged;;
   FPen.OnChange := OnPenChanged;
   FBackgroundColor := clWhite;
+  FShowRulers := True;
   FUpdating := False;
+  Redraw;
 end;
 
 destructor TDesignBox.Destroy;
@@ -374,6 +421,16 @@ begin
   FPen.Free;
   FUndoList.Free;
   inherited;
+end;
+
+function TDesignBox.GetPageHeightMM: integer;
+begin
+  Result := FPageSizeMM.Height;
+end;
+
+function TDesignBox.GetPageWidthMM: integer;
+begin
+  Result := FPageSizeMM.Width;
 end;
 
 function TDesignBox.GetSelectedItems: TDesignBoxItemList;
@@ -438,6 +495,9 @@ var
   ADeselectOthers: Boolean;
 begin
   inherited;
+  X := X - FPageOffset.X;
+  Y := Y - FPageOffset.Y;
+
   ADeselectOthers := True;
 
   FMouseDownPos := Point(X, Y);
@@ -467,6 +527,9 @@ var
   AItem: TDesignBoxBaseItem;
 begin
   inherited;
+  X := X - FPageOffset.X;
+  Y := Y - FPageOffset.Y;
+
   if (FDragging) and (FItems.SelectedCount > 0) then
   begin
     for AItem in FItems do
@@ -486,6 +549,9 @@ var
   AItem: TDesignBoxBaseItem;
 begin
   inherited;
+  X := X - FPageOffset.X;
+  Y := Y - FPageOffset.Y;
+
   if (FDragging) and (FItems.SelectedCount = 0) then
   begin
     ADragArea := Rect(Min(FMouseDownPos.X, X), Min(FMouseDownPos.Y, Y), Max(FMouseDownPos.X, X), Max(FMouseDownPos.Y, Y));
@@ -539,24 +605,103 @@ begin
   Redraw;
 end;
 
+procedure TDesignBox.DrawRulers(ACanvas: TCanvas);
+var
+  APxPerMM: Extended;
+  AMm: integer;
+  AMarkSize: integer;
+  tw, th: integer;
+begin
+  APxPerMm := 96 / 25.4;
+
+
+  ACanvas.Brush.Color := clWhite;
+  ACanvas.Pen.Style := psClear;
+  ACanvas.FillRect(Rect(0, 0, Width, FPageOffset.Y));
+  ACanvas.FillRect(Rect(0, 0, FPageOffset.X, Height));
+  ACanvas.Pen.Style := psSolid;
+  ACanvas.Pen.Color := clBlack;
+  ACanvas.Pen.Mode := pmCopy;
+  ACanvas.Polyline([Point(0, FPageOffset.Y), Point(Width, FPageOffset.Y)]);
+  ACanvas.Polyline([Point(FPageOffset.X, 0), Point(FPageOffset.X, Height)]);
+
+  AMm := 1;
+  while (AMm*APxPerMM) < Width do
+  begin
+    AMarkSize := 0;
+    if (AMm) mod 2 = 0 then AMarkSize := 5;
+    if (AMm) mod 10 = 0 then AMarkSize := 10;
+    if AMarkSize > 0 then
+    begin
+      ACanvas.Polyline([Point(Round(AMm*APxPerMm)+FPageOffset.X, FPageOffset.Y-AMarkSize),
+                        Point(Round(AMm*APxPerMm)+FPageOffset.X, FPageOffset.Y)]);
+      if AMarkSize = 10 then
+      begin
+        tw := ACanvas.TextWidth(AMm.ToString);
+        ACanvas.TextOut((Round(AMm*APxPerMm)+FPageOffset.X) - (tw div 2), FPageOffset.Y-20, AMm.ToString);
+      end;
+    end;
+    Inc(AMm);
+  end;
+
+  AMm := 1;
+  while (AMm*APxPerMM) < Height do
+  begin
+    AMarkSize := 0;
+    if AMm mod 2 = 0 then AMarkSize := 5;
+    if AMm mod 10 = 0 then AMarkSize := 10;
+    if AMarkSize > 0 then
+    begin
+      ACanvas.Polyline([Point(FPageOffset.X-AMarkSize, Round(AMm*APxPerMm)+FPageOffset.Y),
+                        Point(FPageOffset.X, Round(AMm*APxPerMm)+FPageOffset.Y)]);
+      if AMarkSize = 10 then
+      begin
+        th := ACanvas.TextHeight(AMm.ToString);
+        ACanvas.TextOut(FPageOffset.X-20, (Round(AMm*APxPerMm)+FPageOffset.Y) - (th div 2), AMm.ToString);
+      end;
+    end;
+    Inc(AMm);
+  end;
+
+
+end;
+
 procedure TDesignBox.Paint;
 var
   ARect: TRect;
 begin
+  case FShowRulers of
+    True: FPageOffset := Point(40, 40);
+    False: FPageOffset := Point(0, 0);
+  end;
+  Canvas.Brush.Color := clLtGray;
+  Canvas.FillRect(ClientRect);
+  Canvas.FrameRect(ClientRect);
 
   if (FBuffer.Width = 0) then
     Redraw;
-  Canvas.Draw(0, 0, FBuffer);
+
+  if FShowRulers then
+    DrawRulers(Canvas);
+
+  Canvas.Draw(FPageOffset.X, FPageOffset.Y, FBuffer);
 
   if (FDragging) and (FItems.SelectedCount = 0) then
   begin
-    ARect := Rect(FMouseDownPos.X, FMouseDownPos.Y, FMouseXY.X, FMouseXY.Y);
+    ARect := Rect(FMouseDownPos.X+FPageOffset.X,
+                  FMouseDownPos.Y+FPageOffset.Y,
+                  FMouseXY.X+FPageOffset.X,
+                  FMouseXY.Y+FPageOffset.Y);
     Canvas.Pen.Style := psDot;
     Canvas.Pen.Color := clBlack;
     Canvas.Pen.Mode := pmNot;
     Canvas.Brush.Style := bsClear;
     Canvas.Rectangle(ARect);
   end;
+  Canvas.Brush.Style := bsClear;
+  Canvas.Brush.Color := clDkGray;
+  Canvas.FrameRect(ClientRect);
+
 end;
 
 
@@ -580,11 +725,13 @@ var
 begin
   //FBuffer.Free;
   //FBuffer := TBitmap.Create;
-  FBuffer.SetSize(Width, Height);
+  ResizeCanvas;
+
+
   FBuffer.Canvas.Brush.Color := BackGroundColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
   FBuffer.Canvas.Pen.Color := clBlack;
-  FBuffer.Canvas.Rectangle(ClientRect);
+  FBuffer.Canvas.Rectangle(0,0, FBuffer.Width, FBuffer.Height);
   //FBuffer.Canvas.Brush.Style := bsClear;
   if FItems.Count > 0 then
   begin
@@ -595,6 +742,11 @@ begin
         AItem.DrawSelectedRect(FBuffer.Canvas);
     end;
   end;
+
+  FBuffer.Canvas.Brush.Style := bsClear;
+  FBuffer.Canvas.Pen.Color := clBlack;
+  FBuffer.Canvas.Rectangle(0,0, FBuffer.Width, FBuffer.Height);
+
   Invalidate;
 end;
 
@@ -604,6 +756,11 @@ begin
   FBuffer.Width := Width;
   FBuffer.Height := Height;
   Redraw;
+end;
+
+procedure TDesignBox.ResizeCanvas;
+begin
+  FBuffer.SetSize(Round((96/25.4)*FPageSizeMM.Width), Round((96/25.4)*FPageSizeMM.Height));
 end;
 
 procedure TDesignBox.SaveSnapShot(aForce: boolean);
@@ -673,9 +830,46 @@ begin
   FFont.Assign(Value);
 end;
 
+procedure TDesignBox.SetPageHeightMM(const Value: integer);
+begin
+  FPageSizeMM.Height := Value;
+  Redraw;
+end;
+
+procedure TDesignBox.SetPageSize(APageSize: TSize);
+begin
+  FPageSizeMM.Width := APageSize.Width;
+  FPageSizeMM.Height := APageSize.Height;
+  Redraw;
+end;
+
+procedure TDesignBox.SetPageWidthMM(const Value: integer);
+begin
+  FPageSizeMM.Width := Value;
+  Redraw;
+end;
+
+procedure TDesignBox.SetPageSize(AWidthMM, AHeightMM: integer);
+var
+  ASize: TSize;
+begin
+  ASize.Width := AwidthMM;
+  ASize.Height := AHeightMM;
+  SetPageSize(ASize);
+end;
+
 procedure TDesignBox.SetPen(const Value: TPen);
 begin
   FPen.Assign(Value);
+end;
+
+procedure TDesignBox.SetShowRulers(const Value: Boolean);
+begin
+  if FShowRulers <> Value then
+  begin
+    FShowRulers := Value;
+    Invalidate;
+  end;
 end;
 
 procedure TDesignBox.Undo;
