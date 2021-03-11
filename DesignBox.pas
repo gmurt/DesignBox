@@ -16,7 +16,7 @@ interface
 
 uses
   Windows, Messages, System.SysUtils, System.Classes, Vcl.Controls, System.Types, System.Generics.Collections,
-  Graphics, JsonDataObjects, System.Generics.Defaults;
+  Graphics, System.Generics.Defaults, Json;
 
 type
   TDesignBox = class;
@@ -46,6 +46,24 @@ type
 
 
   TDesignBoxSelectItemEvent = procedure(Sender: TObject; AItem: TDesignBoxBaseItem) of object;
+
+  TDesignUndoList = class
+  private
+    FDesignBox: TDesignBox;
+    FChanges: TStrings;
+    FChangesBookmark: integer;
+    function GetCanRedo: Boolean;
+    function GetCanUndo: Boolean;
+    function GetCurrentSnapshot: string;
+    procedure SaveSnapshot(AForce: Boolean);
+  public
+    constructor Create(ADesignBox: TDesignBox); virtual;
+    destructor Destroy; override;
+    procedure Undo;
+    procedure Redo;
+    property CanUndo: Boolean read GetCanUndo;
+    property CanRedo: Boolean read GetCanRedo;
+  end;
 
   TDesignFont = class(TFont)
   public
@@ -151,6 +169,9 @@ type
     FShape: TdbShape;
     FBrush: TDesignBrush;
     FPen: TDesignPen;
+
+    procedure DoBrushChange(Sender: TObject);
+    procedure DoPenChange(Sender: TObject);
     function GetBrush: TBrush;
     function GetPen: TPen;
     procedure SetBrush(const Value: TBrush);
@@ -183,6 +204,7 @@ type
   TDesignBoxItemList = class(TObjectList<TDesignBoxBaseItem>)
   private
     FDesignBox: TDesignBox;
+
     function GetSelectedCount: integer;
     function AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
   public
@@ -216,6 +238,9 @@ type
     FBrush: TBrush;
     FFont: TFont;
     FPen: TPen;
+    FUpdating: Boolean;
+    FUndoList: TDesignUndoList;
+    FOnChange: TNotifyEvent;
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -224,6 +249,7 @@ type
     procedure SetBrush(const Value: TBrush);
     procedure SetFont(const Value: TFont);
     procedure SetPen(const Value: TPen);
+    procedure RecordSnapshot;
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -238,6 +264,7 @@ type
     procedure Clear;
     procedure SaveToStream(AStream: TStream);
     procedure LoadFromStream(AStream: TStream);
+    procedure LoadFromJson(AJsonData: string);
     procedure SaveToFile(AFilename: string);
     procedure LoadFromFile(AFilename: string);
     procedure BringToFront;
@@ -247,6 +274,7 @@ type
     property Pen: TPen read FPen write SetPen;
     property Items: TDesignBoxItemList read FItems;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
+    property UndoList: TDesignUndoList read FUndoList;
   published
     property Align;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
@@ -254,6 +282,7 @@ type
     property OnMouseMove;
     property OnMouseUp;
     property PopupMenu;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
 procedure Register;
@@ -294,6 +323,7 @@ end;
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
+  FUpdating := True;
   FBuffer := TBitmap.Create;
   FBrush := TBrush.Create;
   FFont := TFont.Create;
@@ -301,10 +331,13 @@ begin
   FItems := TDesignBoxItemList.Create(Self);
   FSelectedItems := TDesignBoxItemList.Create(Self);
   FSelectedItems.OwnsObjects := False;
+  FUndoList := TDesignUndoList.Create(Self);
+
   FBuffer.SetSize(Width, Height);
   FBrush.OnChange := OnBrushChanged;
   FFont.OnChange := OnFontChanged;;
   FPen.OnChange := OnPenChanged;
+  FUpdating := False;
 end;
 
 destructor TDesignBox.Destroy;
@@ -315,6 +348,7 @@ begin
   FFont.Free;
   FBrush.Free;
   FPen.Free;
+  FUndoList.Free;
   inherited;
 end;
 
@@ -347,17 +381,32 @@ end;
 
 procedure TDesignBox.LoadFromStream(AStream: TStream);
 var
-  AJson: TJsonObject;
+  AStringStream: TStringStream;
 begin
-  AJson := TJsonObject.Create;
+  AStringStream := TStringStream.Create;
   try
-    AJson.LoadFromStream(AStream);
+    AStringStream.CopyFrom(AStream, AStream.Size);
+    LoadFromJson(AStringStream.DataString);
+  finally
+    AStringStream.Free;
+  end;
+end;
+
+procedure TDesignBox.LoadFromJson(AJsonData: string);
+var
+  AJson: TJSONObject;
+begin
+  AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
+  try
     FItems.LoadFromJson(AJson);
     Redraw;
+    if Assigned(FOnChange) then
+      FOnChange(Self);
   finally
     AJson.Free;
   end;
 end;
+
 
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
@@ -425,9 +474,9 @@ begin
       AItem.Selected := AItem.RectsIntersect(ADragArea);
     end;
   end;
-
   FDragging := False;
   Invalidate;
+  RecordSnapshot;
 end;
 
 procedure TDesignBox.OnBrushChanged(Sender: TObject);
@@ -490,6 +539,15 @@ begin
 end;
 
 
+procedure TDesignBox.RecordSnapshot;
+begin
+  if FUpdating then
+    Exit;
+  UndoList.SaveSnapshot(False);
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
 procedure TDesignBox.Redraw;
 var
   AItem: TDesignBoxBaseItem;
@@ -538,11 +596,18 @@ end;
 procedure TDesignBox.SaveToStream(AStream: TStream);
 var
   AJson: TJsonObject;
+  AStringStream: TStringStream;
 begin
   AJson := TJsonObject.Create;
   try
     FItems.SaveToJson(AJson);
-    AJson.SaveToStream(AStream);
+    AStringStream := TStringStream.Create(AJson.ToJSON);
+    try
+      AStringStream.Position := 0;
+      AStream.CopyFrom(AStringStream, AStringStream.Size);
+    finally
+      AStringStream.Free;
+    end;
   finally
     AJson.Free;
   end;
@@ -657,10 +722,10 @@ end;
 procedure TDesignBoxItemText.LoadFromJson(AJson: TJsonObject);
 begin
   inherited;
-  Text := AJson.S['text'];
-  FBrush.LoadFromJson(AJson.O['brush']);
-  FFont.LoadFromJson(AJson.O['font']);
-  FPen.LoadFromJson(AJson.O['pen']);
+  Text := AJson.Values['text'].Value;
+  FBrush.LoadFromJson(AJson);
+  FFont.LoadFromJson(AJson);
+  FPen.LoadFromJson(AJson);
 end;
 
 
@@ -668,10 +733,10 @@ end;
 procedure TDesignBoxItemText.SaveToJson(AJson: TJsonObject);
 begin
   inherited;
-  AJson.S['text'] := Text;
-  FBrush.SaveToJson(AJson.O['brush']);
-  FFont.SaveToJson(AJson.O['font']);
-  FPen.SaveToJson(AJson.O['pen']);
+  AJson.AddPair('text', Text);
+  FBrush.SaveToJson(AJson);
+  FFont.SaveToJson(AJson);
+  FPen.SaveToJson(AJson);
 end;
 
 procedure TDesignBoxItemText.SetBrush(const Value: TBrush);
@@ -703,6 +768,8 @@ end;
 procedure TDesignBoxBaseItem.Changed;
 begin
   FDesignBox.Redraw;
+  if not FDesignBox.FDragging then
+    FDesignBox.UndoList.SaveSnapshot(False);
 end;
 
 constructor TDesignBoxBaseItem.Create(ADesignBox: TDesignBox);
@@ -775,19 +842,19 @@ end;
 
 procedure TDesignBoxBaseItem.LoadFromJson(AJson: TJsonObject);
 begin
-  FPositionMM.X := AJson.F['x'];
-  FPositionMM.Y := AJson.F['y'];
-  FWidthMM := AJson.F['width'];
-  FHeightMM := AJson.F['height'];
+  FPositionMM.X := StrToFloatDef(AJson.Values['x'].Value, 0); // AJson.F['x'];
+  FPositionMM.Y := StrToFloatDef(AJson.Values['y'].Value, 0);
+  FWidthMM := StrToFloatDef(AJson.Values['width'].Value, 0);
+  FHeightMM := StrToFloatDef(AJson.Values['height'].Value, 0);
 end;
 
 procedure TDesignBoxBaseItem.SaveToJson(AJson: TJsonObject);
 begin
-  AJson.S['obj'] := ClassName;
-  AJson.F['x'] := FPositionMM.X;
-  AJson.F['y'] := FPositionMM.Y;
-  AJson.F['width'] := FWidthMM;
-  AJson.F['height'] := FHeightMM;
+  AJson.AddPair('obj', ClassName);
+  AJson.AddPair('x', FPositionMM.X.ToString);
+  AJson.AddPair('y', FPositionMM.Y.ToString);
+  AJson.AddPair('width', FWidthMM.ToString);
+  AJson.AddPair('height',FHeightMM.ToString);
 end;
         {
 procedure TDesignBoxBaseItem.SendToBack;
@@ -836,14 +903,15 @@ begin
   Result.FHeightMM := ABottomMM - ATopMM;
   Result.Brush.Assign(FDesignBox.Brush);
   Result.Pen.Assign(FDesignBox.Pen);
-
-
   Add(Result);
   FDesignBox.Redraw;
+  FDesignBox.RecordSnapshot;
 end;
 
 function TDesignBoxItemList.AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
 begin
+  if Trim(AText) = ''  then
+    AText := '<empty>';
   Result := TDesignBoxItemText.Create(FDesignBox);
   Result.LeftMM := ALeftMM;
   Result.TopMM := ATopMM;
@@ -851,14 +919,8 @@ begin
   Result.Brush.Assign(FDesignBox.Brush);
   Add(Result);
   FDesignBox.Redraw;
+  FDesignBox.RecordSnapshot;
 end;
-    {
-procedure TDesignBoxItemList.BringToFront(AObj: TDesignBoxBaseItem);
-begin
-  Extract(AObj);
-  Add(AObj);
-  FDesignBox.Redraw;
-end;  }
 
 function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxBaseItem;
 begin
@@ -867,6 +929,7 @@ begin
   Result.TopMM := ATopMM;
   Add(result);
   FDesignBox.ReDraw;
+  FDesignBox.RecordSnapshot;
 end;
 
 function TDesignBoxItemList.AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
@@ -882,6 +945,7 @@ begin
   Result.Graphic.Assign(AGraphic);
   Add(Result);
   FDesignBox.Redraw;
+  FDesignBox.RecordSnapshot;
 end;
 
 constructor TDesignBoxItemList.Create(ADesignBox: TDesignBox);
@@ -937,23 +1001,32 @@ var
   AItems: TJsonArray;
   AObj: TJsonObject;
   AObjName: string;
+  ICount: integer;
   AItem: TDesignBoxBaseItem;
 begin
-  Clear;
-  AItems := AJson.A['items'];
-  for AObj in AItems do
-  begin
-    AItem := nil;
-    AObjName := AObj.S['obj'].ToLower;
-    if AObjName = TDesignBoxItemText.ClassName.ToLower then AItem := TDesignBoxItemText.Create(FDesignBox);
-    if AObjName = TDesignBoxItemGraphic.ClassName.ToLower then AItem := TDesignBoxItemGraphic.Create(FDesignBox);
-    if AObjName = TDesignBoxItemShape.ClassName.ToLower then AItem := TDesignBoxItemShape.Create(FDesignBox);
-
-    if AItem <> nil then
+  FDesignBox.FUpdating := True;
+  try
+    Clear;
+    AItems := AJson.Values['items'] as TJSONArray;
+    if AItems = nil then
+      Exit;
+    for ICount := 0 to AItems.Count-1 do
     begin
-      AItem.LoadFromJson(AObj);
-      Add(AItem);
+      AObj := AItems.Items[ICount] as TJSONObject;
+      AItem := nil;
+      AObjName := AObj.Values['obj'].Value.ToLower;
+      if AObjName = TDesignBoxItemText.ClassName.ToLower then AItem := TDesignBoxItemText.Create(FDesignBox);
+      if AObjName = TDesignBoxItemGraphic.ClassName.ToLower then AItem := TDesignBoxItemGraphic.Create(FDesignBox);
+      if AObjName = TDesignBoxItemShape.ClassName.ToLower then AItem := TDesignBoxItemShape.Create(FDesignBox);
+
+      if AItem <> nil then
+      begin
+        AItem.LoadFromJson(AObj);
+        Add(AItem);
+      end;
     end;
+  finally
+    FDesignBox.FUpdating := False;
   end;
 end;
 
@@ -963,7 +1036,8 @@ var
   AObj: TJsonObject;
   AItem: TDesignBoxBaseItem;
 begin
-  AItems := AJson.A['items'];
+  AItems := TJSONArray.Create;// AJson.A['items'];
+  AJson.AddPair('items', AItems);
   for AItem in Self do
   begin
     AObj := TJsonObject.Create;
@@ -991,24 +1065,27 @@ var
   AStream: TMemoryStream;
   AEncoded: TStringStream;
   AType: string;
-  AImg: TGraphic;
+  AGraphic: TGraphic;
+  AImgObj: TJSONObject;
 begin
   inherited;
+  AImgObj := AJson.Values['img'] as TJSONObject;
+
   AStream := TMemoryStream.Create;
-  AEncoded := TStringStream.Create(AJson.O['img'].S['data']);
+  AEncoded := TStringStream.Create((AImgObj.Values['data'].Value));
   try
     AEncoded.Position := 0;
     TNetEncoding.Base64.Decode(AEncoded, AStream);
     AStream.Position := 0;
-    AType := AJson.O['img'].S['type'].ToLower;
-    AImg := nil;
-    if AType = TPngImage.ClassName.ToLower then AImg := TPngImage.Create;
-    if AType = TBitmap.ClassName.ToLower then AImg := TBitmap.Create;
-    if AType = TJPEGImage.ClassName.ToLower then AImg := TJPEGImage.Create;
-    if AImg <> nil then
+    AType := AImgObj.Values['type'].Value.ToLower;
+    AGraphic := nil;
+    if AType = TPngImage.ClassName.ToLower then AGraphic := TPngImage.Create;
+    if AType = TBitmap.ClassName.ToLower then AGraphic := TBitmap.Create;
+    if AType = TJPEGImage.ClassName.ToLower then AGraphic := TJPEGImage.Create;
+    if AGraphic <> nil then
     begin
-      AImg.LoadFromStream(AStream);
-      FGraphic.Assign(AImg);
+      AGraphic.LoadFromStream(AStream);
+      FGraphic.Assign(AGraphic);
     end;
   finally
     AStream.Free;
@@ -1028,6 +1105,7 @@ procedure TDesignBoxItemGraphic.SaveToJson(AJson: TJsonObject);
 var
   AStream: TMemoryStream;
   AEncoded: TStringStream;
+  AImg: TJSONObject;
 begin
   inherited;
   AStream := TMemoryStream.Create;
@@ -1036,8 +1114,10 @@ begin
     FGraphic.SaveToStream(AStream);
     AStream.Position := 0;
     TNetEncoding.Base64.Encode(AStream, AEncoded);
-    AJson.O['img'].S['type'] := FGraphic.Graphic.ClassName;
-    AJson.O['img'].S['data'] := AEncoded.DataString;
+    AImg := TJsonObject.Create; //AJson.Values['img'] as TJSONObject;
+    AJson.AddPair('img', AImg);
+    AImg.AddPair('type', FGraphic.Graphic.ClassName);
+    AImg.AddPair('data', AEncoded.DataString);
   finally
     AStream.Free;
     AEncoded.Free;
@@ -1052,17 +1132,27 @@ end;
 { TDesignFont }
 
 procedure TDesignFont.LoadFromJson(AJson: TJsonObject);
+var
+  AObj: TJSONObject;
 begin
-  Name := AJson.S['name'];
-  Size := AJson.I['size'];
-  Color := AJson.I['color'];
+  AObj := AJson.Values['font'] as TJSONObject;
+  if AObj <> nil then
+  begin
+    Name := AObj.Values['name'].Value;
+    Size := StrToIntDef(AObj.Values['size'].Value, 10);
+    Color := StrToIntDef(AObj.Values['color'].Value, 0);
+  end;
 end;
 
 procedure TDesignFont.SaveToJson(AJson: TJsonObject);
+var
+  AObj: TJsonObject;
 begin
-  AJson.S['name'] := Name;
-  AJson.I['size'] := Size;
-  AJson.I['color'] := Color;
+  AObj := TJSONObject.Create;
+  AObj.AddPair('name', Name);
+  AObj.AddPair('size', Size.ToString);
+  AObj.AddPair('color', IntToStr(Color));
+  AJson.AddPair('font', AObj);
 end;
 
 { TDesignBoxItemShape }
@@ -1072,7 +1162,8 @@ begin
   inherited;
   FBrush := TDesignBrush.Create;
   FPen := TDesignPen.Create;
-
+  FBrush.OnChange := DoBrushChange;
+  FPen.OnChange := DoPenChange;
 end;
 
 destructor TDesignBoxItemShape.Destroy;
@@ -1080,6 +1171,16 @@ begin
   FBrush.Free;
   FPen.Free;
   inherited;
+end;
+
+procedure TDesignBoxItemShape.DoBrushChange(Sender: TObject);
+begin
+  Changed;
+end;
+
+procedure TDesignBoxItemShape.DoPenChange(Sender: TObject);
+begin
+  Changed;
 end;
 
 function TDesignBoxItemShape.GetBrush: TBrush;
@@ -1097,13 +1198,13 @@ var
   AShape: string;
 begin
   inherited;
-  AShape := AJson.S['shape'];
+  AShape := AJson.Values['shape'].Value;
   if AShape = 'ellipse' then FShape := dbEllipse;
   if AShape = 'rectangle' then FShape := dbRectangle;
   if AShape = 'line' then FShape := dbLine;
 
-  FBrush.LoadFromJson(AJson.O['brush']);
-  FPen.LoadFromJson(AJson.O['pen']);
+  FBrush.LoadFromJson(AJson);
+  FPen.LoadFromJson(AJson);
 end;
 
 procedure TDesignBoxItemShape.PaintToCanvas(ACanvas: TCanvas);
@@ -1126,12 +1227,12 @@ procedure TDesignBoxItemShape.SaveToJson(AJson: TJsonObject);
 begin
   inherited;
   case FShape of
-    dbEllipse   : AJson.S['shape'] := 'ellipse';
-    dbRectangle : AJson.S['shape'] := 'rectangle';
-    dbLine      : AJson.S['shape'] := 'line';
+    dbEllipse   : AJson.AddPair('shape', 'ellipse');
+    dbRectangle : AJson.AddPair('shape', 'rectangle');
+    dbLine      : AJson.AddPair('shape', 'line');
   end;
-  FBrush.SaveToJson(AJson.O['brush']);
-  FPen.SaveToJson(AJson.O['pen']);
+  FBrush.SaveToJson(AJson);
+  FPen.SaveToJson(AJson);
 end;
 
 procedure TDesignBoxItemShape.SetBrush(const Value: TBrush);
@@ -1193,31 +1294,126 @@ end;
 { TDesignBrush }
 
 procedure TDesignBrush.LoadFromJson(AJson: TJsonObject);
+var
+  AObj: TJSONObject;
 begin
-  Color := AJson.I['color'];
-  Style := TBrushStyle(AJson.I['style']);
+  AObj := AJson.Values['brush'] as TJSONObject;
+  if AObj <> nil then
+  begin
+    Color := StrToIntDef(AObj.Values['color'].Value, 0);
+    Style := TBrushStyle(StrToIntDef(AObj.Values['style'].Value, 0));
+  end;
 end;
 
 procedure TDesignBrush.SaveToJson(AJson: TJsonObject);
+var
+  AObj: TJSONObject;
 begin
-  AJson.I['color'] := Color;
-  AJson.I['style'] := Ord(Style);
+  AObj := TJSONObject.Create;
+  AObj.AddPair('color', IntToStr(Color));
+  AObj.AddPair('style', IntToStr(Ord(Style)));
+  AJson.AddPair('brush', AObj);
 end;
 
 { TDesignPen }
 
 procedure TDesignPen.LoadFromJson(AJson: TJsonObject);
+var
+  AObj: TJSONObject;
 begin
-  Color := AJson.I['color'];
-  Style := TPenStyle(AJson.I['style']);
-  Width := AJson.I['width'];
+  AObj := AJson.Values['pen'] as TJSONObject;
+  if AObj <> nil then
+  begin
+    Color := StrToIntDef(AObj.Values['color'].Value, 0);
+    Style := TPenStyle(StrToIntDef(AObj.Values['style'].Value, 0));
+    Width := StrToIntDef(AObj.Values['width'].Value, 1);
+  end;
 end;
 
 procedure TDesignPen.SaveToJson(AJson: TJsonObject);
+var
+  AObj: TJSONObject;
 begin
-  AJson.I['color'] := Color;
-  AJson.I['style'] := Ord(Style);
-  AJson.I['width'] := Width;
+  AObj := TJSONObject.Create;
+  AObj.AddPair('color', IntToStr(Color));
+  AObj.AddPair('style', IntToStr(Ord(Style)));
+  AObj.AddPair('width', IntToStr(Width));
+  AJson.AddPair('pen', AObj);
 end;
+
+{ TDesignUndoList }
+
+function TDesignUndoList.GetCanRedo: Boolean;
+begin
+  Result := FChangesBookmark < FChanges.Count;
+end;
+
+function TDesignUndoList.GetCanUndo: Boolean;
+begin
+  Result := FChangesBookmark > 1;
+end;
+
+function TDesignUndoList.GetCurrentSnapshot: string;
+begin
+  Result := '';
+  if FChanges.Count > 0 then
+    Result := FChanges[FChangesBookmark-1];
+end;
+
+procedure TDesignUndoList.Redo;
+begin
+  if FChangesBookmark < FChanges.Count then
+  begin
+    Inc(FChangesBookmark);
+    FDesignBox.LoadFromJson(GetCurrentSnapshot);
+  end;
+end;
+
+procedure TDesignUndoList.Undo;
+begin
+  if FChangesBookmark > 0 then
+    Dec(FChangesBookmark);
+  FDesignBox.LoadFromJson(GetCurrentSnapshot);
+end;
+
+
+constructor TDesignUndoList.Create(ADesignBox: TDesignBox);
+begin
+  FChanges := TStringList.Create;
+  FChangesBookmark := 0;
+  FDesignBox := ADesignBox;
+  SaveSnapshot(True);
+end;
+
+destructor TDesignUndoList.Destroy;
+begin
+  FChanges.Free;
+  inherited;
+end;
+
+procedure TDesignUndoList.SaveSnapshot(AForce: Boolean);
+var
+  AStream: TStringStream;
+begin
+  if (FDesignBox.FUpdating) and (not AForce) then
+    Exit;
+
+  while FChanges.Count > FChangesBookmark do
+    FChanges.Delete(FChanges.Count-1);
+
+  AStream := TStringStream.Create;
+  try
+    FDesignBox.SaveToStream(AStream);
+    if (FChanges.Count = 0) or (FChanges[FChangesBookmark-1] <> AStream.DataString) then
+    begin
+
+      FChanges.Add(AStream.DataString);
+      FChangesBookmark := FChanges.Count;
+    end;
+  finally
+    AStream.Free;
+  end;
+end;
+
 
 end.

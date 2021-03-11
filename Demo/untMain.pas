@@ -42,6 +42,11 @@ type
     CheckBox1: TCheckBox;
     txtTextItem: TEdit;
     CheckBox2: TCheckBox;
+    Panel2: TPanel;
+    Button1: TButton;
+    Button2: TButton;
+    actUndo: TAction;
+    actRedo: TAction;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -63,11 +68,16 @@ type
     procedure CheckBox1Click(Sender: TObject);
     procedure CheckBox2Click(Sender: TObject);
     procedure txtTextItemChange(Sender: TObject);
+    procedure actUndoExecute(Sender: TObject);
+    procedure actRedoExecute(Sender: TObject);
+    procedure DesignBox1Change(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
     procedure UpdateActionStates;
     { Private declarations }
+  protected
+    procedure DoShow; override;
   public
 
     { Public declarations }
@@ -90,9 +100,19 @@ begin
   DesignBox1.Items.DeleteSelected;
 end;
 
+procedure TfrmMain.actRedoExecute(Sender: TObject);
+begin
+  DesignBox1.UndoList.Redo;
+end;
+
 procedure TfrmMain.actSendToBackExecute(Sender: TObject);
 begin
   DesignBox1.SendToBack;
+end;
+
+procedure TfrmMain.actUndoExecute(Sender: TObject);
+begin
+  DesignBox1.UndoList.Undo;
 end;
 
 function TfrmMain.AppDir: string;
@@ -181,6 +201,11 @@ begin
   item.selected := True;
 end;
 
+procedure TfrmMain.DesignBox1Change(Sender: TObject);
+begin
+  UpdateActionStates;
+end;
+
 procedure TfrmMain.DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   UpdateItemCoords;
@@ -215,6 +240,12 @@ begin
   end;  }
 end;
 
+procedure TfrmMain.DoShow;
+begin
+  inherited;
+  UpdateActionStates;
+end;
+
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   self.Caption := application.title;
@@ -240,6 +271,8 @@ begin
   actBringToFront.Enabled := DesignBox1.Items.SelectedCount > 0;
   actSendToBack.Enabled := DesignBox1.Items.SelectedCount > 0;
   actDelete.Enabled := DesignBox1.Items.SelectedCount > 0;
+  actUndo.Enabled := DesignBox1.UndoList.CanUndo;
+  actRedo.Enabled := DesignBox1.UndoList.CanRedo;
 end;
 
 procedure TfrmMain.UpdateItemCoords;

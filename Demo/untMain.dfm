@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'frmMain'
-  ClientHeight = 434
-  ClientWidth = 669
+  ClientHeight = 466
+  ClientWidth = 933
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 89
     Width = 8
-    Height = 318
+    Height = 309
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -27,8 +27,8 @@ object frmMain: TfrmMain
   end
   object Bevel2: TBevel
     Left = 0
-    Top = 407
-    Width = 669
+    Top = 439
+    Width = 933
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,10 +37,10 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 661
+    Left = 925
     Top = 89
     Width = 8
-    Height = 318
+    Height = 309
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -50,32 +50,37 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 81
-    Width = 669
+    Width = 933
     Height = 8
     Align = alTop
     Shape = bsSpacer
     ExplicitLeft = -8
+    ExplicitWidth = 669
   end
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
-    Width = 653
-    Height = 318
+    Width = 917
+    Height = 309
     Align = alClient
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
+    OnChange = DesignBox1Change
     ExplicitTop = 87
+    ExplicitWidth = 653
+    ExplicitHeight = 318
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 669
+    Width = 933
     Height = 81
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitWidth = 669
     object Image1: TImage
       Left = 136
       Top = -7
@@ -224,11 +229,38 @@ object frmMain: TfrmMain
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 415
-    Width = 669
+    Top = 447
+    Width = 933
     Height = 19
     Panels = <>
     SimplePanel = True
+    ExplicitWidth = 669
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 398
+    Width = 933
+    Height = 41
+    Align = alBottom
+    BevelOuter = bvNone
+    TabOrder = 2
+    ExplicitWidth = 669
+    object Button1: TButton
+      Left = 8
+      Top = 10
+      Width = 75
+      Height = 25
+      Action = actUndo
+      TabOrder = 0
+    end
+    object Button2: TButton
+      Left = 89
+      Top = 10
+      Width = 75
+      Height = 25
+      Action = actRedo
+      TabOrder = 1
+    end
   end
   object PopupMenu1: TPopupMenu
     OnPopup = PopupMenu1Popup
@@ -261,6 +293,14 @@ object frmMain: TfrmMain
     object actDelete: TAction
       Caption = 'Delete'
       OnExecute = actDeleteExecute
+    end
+    object actUndo: TAction
+      Caption = 'Undo'
+      OnExecute = actUndoExecute
+    end
+    object actRedo: TAction
+      Caption = 'Redo'
+      OnExecute = actRedoExecute
     end
   end
   object FontDialog1: TFontDialog
