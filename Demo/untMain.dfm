@@ -67,8 +67,8 @@ object frmMain: TfrmMain
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
-    RulerBackground = clGray
-    RulerForeground = clWhite
+    RulerBackground = clWindow
+    RulerForeground = clWindowText
     PageWidthMM = 100
     PageHeightMM = 100
     OnChange = DesignBox1Change
@@ -312,8 +312,8 @@ object frmMain: TfrmMain
   end
   object PopupMenu1: TPopupMenu
     OnPopup = PopupMenu1Popup
-    Left = 328
-    Top = 224
+    Left = 608
+    Top = 464
     object BringToFront1: TMenuItem
       Action = actBringToFront
     end
@@ -328,8 +328,8 @@ object frmMain: TfrmMain
     end
   end
   object ActionList1: TActionList
-    Left = 224
-    Top = 224
+    Left = 504
+    Top = 464
     object actBringToFront: TAction
       Caption = 'Bring To Front'
       OnExecute = actBringToFrontExecute
@@ -357,17 +357,17 @@ object frmMain: TfrmMain
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
-    Left = 224
-    Top = 112
+    Left = 504
+    Top = 352
   end
   object dlgBorderColor: TColorDialog
     Options = [cdAnyColor]
-    Left = 304
-    Top = 112
+    Left = 584
+    Top = 352
   end
   object dlgFillColor: TColorDialog
     Options = [cdAnyColor]
-    Left = 384
-    Top = 112
+    Left = 664
+    Top = 352
   end
 end

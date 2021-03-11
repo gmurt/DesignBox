@@ -626,7 +626,6 @@ const
 begin
   APxPerMm := 96 / 25.4;
 
-
   ACanvas.Brush.Color := fRulerBackground;
   ACanvas.Pen.Style := psClear;
   ACanvas.FillRect(Rect(0, 0, Width, FPageOffset.Y));
@@ -683,12 +682,15 @@ end;
 procedure TDesignBox.Paint;
 var
   ARect: TRect;
+  aRulerWidth: integer;
 begin
+  aRulerWidth := Canvas.TextWidth('9999');
   case FShowRulers of
-    True: FPageOffset := Point(40, 40);
+    True: FPageOffset := Point(aRulerWidth, aRulerWidth); // slightly narrower
     False: FPageOffset := Point(0, 0);
   end;
   Canvas.Brush.Color := clLtGray;
+
   Canvas.FillRect(ClientRect);
   Canvas.FrameRect(ClientRect);
 
@@ -699,6 +701,7 @@ begin
     DrawRulers(Canvas);
 
   Canvas.Draw(FPageOffset.X, FPageOffset.Y, FBuffer);
+  // BitBlt(Canvas.Handle, fPageOffset.X, fPageOffset.Y, fBuffer.Width, fBuffer.Height, fBuffer.Canvas.Handle, 0,0, SRCCOPY);   // this doesn't help the flicker
 
   if (FDragging) and (FItems.SelectedCount = 0) then
   begin
@@ -744,7 +747,7 @@ begin
   FBuffer.Canvas.Brush.Color := BackGroundColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
   FBuffer.Canvas.Pen.Color := clBlack;
-  FBuffer.Canvas.Rectangle(0,0, FBuffer.Width, FBuffer.Height);
+  FBuffer.Canvas.Rectangle(0, 0, FBuffer.Width, FBuffer.Height);
   //FBuffer.Canvas.Brush.Style := bsClear;
   if FItems.Count > 0 then
   begin
