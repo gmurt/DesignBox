@@ -282,7 +282,12 @@ type
     property Items: TDesignBoxItemList read FItems;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
     procedure Redraw;
-    property UndoList: TDesignUndoList read FUndoList;
+//    property UndoList: TDesignUndoList read FUndoList;  -- law of demeter #3 - only talk to your immediate neighbours
+    procedure Undo;
+    procedure Redo;
+    procedure SaveSnapShot(aForce: boolean);
+    function CanUndo : boolean;
+    function CanRedo : boolean;
   published
     property Align;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
@@ -320,6 +325,16 @@ begin
     FItems.Add(AItem);
   end;
   Redraw;
+end;
+
+function TDesignBox.CanRedo: boolean;
+begin
+  result := FUndoList.CanRedo;
+end;
+
+function TDesignBox.CanUndo: boolean;
+begin
+  result := fUndoList.CanUndo;
 end;
 
 procedure TDesignBox.Clear;
@@ -441,9 +456,6 @@ begin
     end;
   end;
 
-
-
-
   FDragging := True;
   FMouseXY := Point(X, Y);
   if (AItem <> nil) and (AItem.Selected) and (Assigned(FOnSelectItem)) then
@@ -552,9 +564,14 @@ procedure TDesignBox.RecordSnapshot;
 begin
   if FUpdating then
     Exit;
-  UndoList.SaveSnapshot(False);
+  fUndoList.SaveSnapshot(False);
   if Assigned(FOnChange) then
     FOnChange(Self);
+end;
+
+procedure TDesignBox.Redo;
+begin
+  fUndoList.Redo;
 end;
 
 procedure TDesignBox.Redraw;
@@ -587,6 +604,11 @@ begin
   FBuffer.Width := Width;
   FBuffer.Height := Height;
   Redraw;
+end;
+
+procedure TDesignBox.SaveSnapShot(aForce: boolean);
+begin
+  fUndoList.SaveSnapshot(aForce);
 end;
 
 procedure TDesignBox.SaveToFile(AFilename: string);
@@ -654,6 +676,11 @@ end;
 procedure TDesignBox.SetPen(const Value: TPen);
 begin
   FPen.Assign(Value);
+end;
+
+procedure TDesignBox.Undo;
+begin
+  fUndoList.Undo;
 end;
 
 procedure TDesignBox.WMEraseBackground(var message: TMessage);
@@ -784,7 +811,7 @@ procedure TDesignBoxBaseItem.Changed;
 begin
   FDesignBox.Redraw;
   if not FDesignBox.FDragging then
-    FDesignBox.UndoList.SaveSnapshot(False);
+    FDesignBox.SaveSnapshot(False);
 end;
 
 constructor TDesignBoxBaseItem.Create(ADesignBox: TDesignBox);
@@ -1397,7 +1424,6 @@ begin
     Dec(FChangesBookmark);
   FDesignBox.LoadFromJson(GetCurrentSnapshot);
 end;
-
 
 constructor TDesignUndoList.Create(ADesignBox: TDesignBox);
 begin

@@ -80,7 +80,6 @@ object frmMain: TfrmMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitWidth = 669
     object Image1: TImage
       Left = 136
       Top = -7
@@ -234,7 +233,6 @@ object frmMain: TfrmMain
     Height = 19
     Panels = <>
     SimplePanel = True
-    ExplicitWidth = 669
   end
   object Panel2: TPanel
     Left = 0
@@ -244,7 +242,6 @@ object frmMain: TfrmMain
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
-    ExplicitWidth = 669
     object Button1: TButton
       Left = 8
       Top = 10

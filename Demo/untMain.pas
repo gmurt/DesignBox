@@ -102,7 +102,7 @@ end;
 
 procedure TfrmMain.actRedoExecute(Sender: TObject);
 begin
-  DesignBox1.UndoList.Redo;
+  DesignBox1.Redo;
 end;
 
 procedure TfrmMain.actSendToBackExecute(Sender: TObject);
@@ -112,7 +112,7 @@ end;
 
 procedure TfrmMain.actUndoExecute(Sender: TObject);
 begin
-  DesignBox1.UndoList.Undo;
+  DesignBox1.Undo;
 end;
 
 function TfrmMain.AppDir: string;
@@ -271,8 +271,8 @@ begin
   actBringToFront.Enabled := DesignBox1.Items.SelectedCount > 0;
   actSendToBack.Enabled := DesignBox1.Items.SelectedCount > 0;
   actDelete.Enabled := DesignBox1.Items.SelectedCount > 0;
-  actUndo.Enabled := DesignBox1.UndoList.CanUndo;
-  actRedo.Enabled := DesignBox1.UndoList.CanRedo;
+  actUndo.Enabled := DesignBox1.CanUndo;
+  actRedo.Enabled := DesignBox1.CanRedo;
 end;
 
 procedure TfrmMain.UpdateItemCoords;

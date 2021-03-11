@@ -4,7 +4,8 @@ uses
   Vcl.Forms,
   untMain in 'untMain.pas' {frmMain},
   Vcl.Themes,
-  Vcl.Styles;
+  Vcl.Styles,
+  DesignBox in '..\DesignBox.pas';
 
 {$R *.res}
 
