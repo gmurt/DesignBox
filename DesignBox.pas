@@ -1,8 +1,6 @@
 unit DesignBox;
 
-
-
-{ TODO 1 : Bug - text background colors not drawing reliably - seem to depend on the color of adjacent items in the list }
+{ TODO 2 : Zoom / Scale facility }
 { TODO 3 : Editable text items - no keyboard events on TGraphicControl - maybe need to inherit from TWinControl and add our own Canvas - or just ignore and go with a "property sheet" UI paradigm ? }
 { TODO 1 : Lines - aka two point selection) }
 { TODO 1 : Resize graphics (4 point selection box) }
@@ -19,6 +17,10 @@ uses
   Graphics, System.Generics.Defaults, Json;
 
 type
+
+  TItemOption = (canSize, canMove, canDelete);
+  TItemOptions = set of TItemOption;
+
   TDesignBox = class;
   TDesignBoxBaseItem = class;
 
@@ -90,14 +92,16 @@ type
     FWidthMM: single;
     FHeightMM: single;
     FSelected: Boolean;
-    function RectPixels: TRect; virtual;
+    fOptions : TItemOptions;
     function GetLeftMM: single;
     function GetTopMM: single;
     procedure Changed;
     procedure SetLeftMM(const Value: single);
     procedure SetTopMM(const Value: single);
     procedure SetSelectedItem(const Value: Boolean);
+    procedure SetOptions(const Value: TItemOptions);
   protected
+    function RectPixels: TRect; virtual;
     procedure OffsetByPixels(X, Y: integer);
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
     procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
@@ -113,6 +117,7 @@ type
     property TopMM: single read GetTopMM write SetTopMM;
     property WidthMM: single read fWidthMM write fWidthMM;
     property HeightMM: single read fHeightMM write fHeightMM;
+    property Options: TItemOptions read fOptions write SetOptions;
   end;
 
   TDesignBoxBaseItemClass = class of TDesignBoxBaseItem;
@@ -238,6 +243,7 @@ type
     FBrush: TBrush;
     FFont: TFont;
     FPen: TPen;
+    FBackgroundColor: TColor;
     FUpdating: Boolean;
     FUndoList: TDesignUndoList;
     FOnChange: TNotifyEvent;
@@ -249,12 +255,12 @@ type
     procedure SetBrush(const Value: TBrush);
     procedure SetFont(const Value: TFont);
     procedure SetPen(const Value: TPen);
+    procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
   protected
     procedure Paint; override;
     procedure Resize; override;
     procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
-    procedure Redraw;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
@@ -272,8 +278,10 @@ type
     property Brush: TBrush read FBrush write SetBrush;
     property Font: TFont read FFont write SetFont;
     property Pen: TPen read FPen write SetPen;
+    property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor;
     property Items: TDesignBoxItemList read FItems;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
+    procedure Redraw;
     property UndoList: TDesignUndoList read FUndoList;
   published
     property Align;
@@ -337,6 +345,7 @@ begin
   FBrush.OnChange := OnBrushChanged;
   FFont.OnChange := OnFontChanged;;
   FPen.OnChange := OnPenChanged;
+  FBackgroundColor := clWhite;
   FUpdating := False;
 end;
 
@@ -450,7 +459,7 @@ begin
   begin
     for AItem in FItems do
     begin
-      if AItem.Selected then
+      if AItem.Selected and (canMove in AItem.Options) then
         AItem.OffsetByPixels(X- FMouseXY.X, Y - FMouseXY.Y);
     end;
   end;
@@ -555,7 +564,7 @@ begin
   //FBuffer.Free;
   //FBuffer := TBitmap.Create;
   FBuffer.SetSize(Width, Height);
-  FBuffer.Canvas.Brush.Color := clWhite;
+  FBuffer.Canvas.Brush.Color := BackGroundColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
   FBuffer.Canvas.Pen.Color := clBlack;
   FBuffer.Canvas.Rectangle(ClientRect);
@@ -625,6 +634,12 @@ begin
   Redraw;
 end;
 
+
+procedure TDesignBox.SetBackgroundColor(const Value: TColor);
+begin
+  fBackgroundColor := Value;
+  Redraw;
+end;
 
 procedure TDesignBox.SetBrush(const Value: TBrush);
 begin
@@ -777,6 +792,7 @@ begin
   inherited Create;
   FDesignBox := ADesignBox;
   FSelected := False;
+  FOptions := [canMove, canSize, canDelete];
 end;
 
 destructor TDesignBoxBaseItem.Destroy;
@@ -865,6 +881,12 @@ end;
 procedure TDesignBoxBaseItem.SetLeftMM(const Value: single);
 begin
   FPositionMM.X := Value;
+end;
+
+procedure TDesignBoxBaseItem.SetOptions(const Value: TItemOptions);
+begin
+  fOptions := Value;
+  Changed;
 end;
 
 procedure TDesignBoxBaseItem.SetSelectedItem(const Value: Boolean);
@@ -959,7 +981,7 @@ var
   ICount: integer;
 begin
   for ICount := Count-1 downto 0 do
-    if Items[ICount].Selected then
+    if Items[ICount].Selected and (canDelete in Items[ICount].Options) then
       Delete(ICount);
   FDesignBox.Redraw;
 end;
