@@ -1,14 +1,11 @@
 unit DesignBox;
 
 { TODO 2 : Zoom / Scale facility }
-{ TODO 3 : Editable text items - no keyboard events on TGraphicControl - maybe need to inherit from TWinControl and add our own Canvas - or just ignore and go with a "property sheet" UI paradigm ? }
+{ TODO 99 : Editable text items - no keyboard events on TGraphicControl - maybe need to inherit from TWinControl and add our own Canvas - or just ignore and go with a "property sheet" UI paradigm ? }
 { TODO 1 : Lines - aka two point selection) }
 { TODO 1 : Resize graphics (4 point selection box) }
-{ TODO 1 : Shapes - fill styles FDiagonal etc }
-{ TODO 2 : Actual bar code items - i.e. dynamically draw the QR/DataMatrix/EAN barcode not just an image }
+{ TODO 1 : fill styles for Shapes, i.e. FDiagonal etc }
 { TODO 2 : background image }
-{ TODO 2 : rulers ?  }
-{ TODO 3 : Shift/Ctrl Key item selection (TGraphicControl lack of keyboard may be an issue here too) }
 
 interface
 
@@ -1668,9 +1665,13 @@ begin
 end;
 
 initialization
-
   RegisterClass(TDesignBoxItemText);
   RegisterClass(TDesignBoxItemShape);
   RegisterClass(TDesignBoxItemGraphic);
+
+finalization
+  UnRegisterClass(TDesignBoxItemText);
+  UnRegisterClass(TDesignBoxItemShape);
+  UnRegisterClass(TDesignBoxItemGraphic);
 
 end.
