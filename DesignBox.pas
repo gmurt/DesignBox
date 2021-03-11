@@ -1269,21 +1269,11 @@ begin
     for ICount := 0 to AItems.Count-1 do
     begin
       AObj := AItems.Items[ICount] as TJSONObject;
-      AItem := nil;
       AObjName := AObj.Values['obj'].Value.toLower;
-      if AObjName = TDesignBoxItemText.ClassName.ToLower then AItem := TDesignBoxItemText.Create(FDesignBox);
-      if AObjName = TDesignBoxItemGraphic.ClassName.ToLower then AItem := TDesignBoxItemGraphic.Create(FDesignBox);
-      if AObjName = TDesignBoxItemShape.ClassName.ToLower then AItem := TDesignBoxItemShape.Create(FDesignBox);
-
-      if AItem = nil then
+      AItemClass := TDesignBoxBaseItemClass(GetClass(AObjName));
+      if AItemClass <> nil then
       begin
-        AItemClass := TDesignBoxBaseItemClass(GetClass(AObjName));
-        if AItemClass <> nil then
-          AItem := AItemClass.Create(FDesignBox);
-      end;
-
-      if AItem <> nil then
-      begin
+        AItem := AItemClass.Create(FDesignBox);
         AItem.LoadFromJson(AObj);
         Add(AItem);
       end;
@@ -1677,5 +1667,10 @@ begin
   end;
 end;
 
+initialization
+
+  RegisterClass(TDesignBoxItemText);
+  RegisterClass(TDesignBoxItemShape);
+  RegisterClass(TDesignBoxItemGraphic);
 
 end.
