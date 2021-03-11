@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'frmMain'
   ClientHeight = 632
-  ClientWidth = 725
+  ClientWidth = 728
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -28,7 +28,7 @@ object frmMain: TfrmMain
   object Bevel2: TBevel
     Left = 0
     Top = 605
-    Width = 725
+    Width = 728
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,7 +37,7 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 717
+    Left = 720
     Top = 89
     Width = 8
     Height = 475
@@ -50,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 81
-    Width = 725
+    Width = 728
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,26 +60,28 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
-    Width = 709
+    Width = 712
     Height = 475
     Align = alClient
     OnSelectItem = DesignBox1SelectItem
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
-    PageWidthMM = 100.099998474121100000
-    PageHeightMM = 100.000000000000000000
+    PageWidthMM = 100
+    PageHeightMM = 100
     OnChange = DesignBox1Change
     ExplicitTop = 87
+    ExplicitWidth = 709
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 725
+    Width = 728
     Height = 81
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitWidth = 725
     object Image1: TImage
       Left = 136
       Top = -7
@@ -229,19 +231,21 @@ object frmMain: TfrmMain
   object StatusBar1: TStatusBar
     Left = 0
     Top = 613
-    Width = 725
+    Width = 728
     Height = 19
     Panels = <>
     SimplePanel = True
+    ExplicitWidth = 725
   end
   object Panel2: TPanel
     Left = 0
     Top = 564
-    Width = 725
+    Width = 728
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
+    ExplicitWidth = 725
     object Button1: TButton
       Left = 8
       Top = 10
@@ -264,6 +268,8 @@ object frmMain: TfrmMain
       Width = 97
       Height = 17
       Caption = 'Rulers'
+      Checked = True
+      State = cbChecked
       TabOrder = 2
       OnClick = CheckBox3Click
     end
