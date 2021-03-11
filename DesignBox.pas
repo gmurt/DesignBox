@@ -216,7 +216,6 @@ type
   TDesignBoxItemList = class(TObjectList<TDesignBoxBaseItem>)
   private
     FDesignBox: TDesignBox;
-
     function GetSelectedCount: integer;
     function AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
   public
@@ -257,6 +256,7 @@ type
     FUndoList: TDesignUndoList;
     FOnChange: TNotifyEvent;
     FShowRulers: Boolean;
+    fDrawCount : integer;
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -306,6 +306,7 @@ type
     procedure SaveSnapShot(aForce: boolean);
     function CanUndo : boolean;
     function CanRedo : boolean;
+    property DrawCount: integer read fDrawCount write fDrawCount;
   published
     property Align;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
@@ -408,6 +409,7 @@ begin
   FBackgroundColor := clWhite;
   FShowRulers := True;
   FUpdating := False;
+  fDrawCount := 0;
   Redraw;
 end;
 
@@ -479,6 +481,12 @@ var
 begin
   AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
   try
+    if assigned(AJson.Values['rulers']) then
+      ShowRulers := TJsonBool(AJson.values['rulers']).asBoolean;
+    if assigned(AJson.Values['pageWidthMM']) then
+      PageWidthMM := TJsonNumber(AJson.values['pageWidthMM']).asInt;
+    if assigned(AJson.Values['pageHeightMM']) then
+      PageHeightMM := TJsonNumber(AJson.values['pageHeightMM']).asInt;
     FItems.LoadFromJson(AJson);
     Redraw;
     if Assigned(FOnChange) then
@@ -487,7 +495,6 @@ begin
     AJson.Free;
   end;
 end;
-
 
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
@@ -727,6 +734,8 @@ begin
   //FBuffer := TBitmap.Create;
   ResizeCanvas;
 
+  inc(fDrawCount);
+
 
   FBuffer.Canvas.Brush.Color := BackGroundColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
@@ -788,6 +797,9 @@ var
 begin
   AJson := TJsonObject.Create;
   try
+    AJson.AddPair('rulers', TJsonBool.Create(ShowRulers));
+    AJson.AddPair('pageWidthMM', TJsonNumber.Create(PageWidthMM));
+    AJson.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
     FItems.SaveToJson(AJson);
     AStringStream := TStringStream.Create(AJson.ToJSON);
     try
@@ -1107,7 +1119,7 @@ end;
 procedure TDesignBoxBaseItem.SetOptions(const Value: TItemOptions);
 begin
   fOptions := Value;
-  Changed;
+//  Changed;
 end;
 
 procedure TDesignBoxBaseItem.SetSelectedItem(const Value: Boolean);
@@ -1246,6 +1258,7 @@ var
   AObjName: string;
   ICount: integer;
   AItem: TDesignBoxBaseItem;
+  AItemClass : TDesignBoxBaseItemClass;
 begin
   FDesignBox.FUpdating := True;
   try
@@ -1257,10 +1270,17 @@ begin
     begin
       AObj := AItems.Items[ICount] as TJSONObject;
       AItem := nil;
-      AObjName := AObj.Values['obj'].Value.ToLower;
+      AObjName := AObj.Values['obj'].Value.toLower;
       if AObjName = TDesignBoxItemText.ClassName.ToLower then AItem := TDesignBoxItemText.Create(FDesignBox);
       if AObjName = TDesignBoxItemGraphic.ClassName.ToLower then AItem := TDesignBoxItemGraphic.Create(FDesignBox);
       if AObjName = TDesignBoxItemShape.ClassName.ToLower then AItem := TDesignBoxItemShape.Create(FDesignBox);
+
+      if AItem = nil then
+      begin
+        AItemClass := TDesignBoxBaseItemClass(GetClass(AObjName));
+        if AItemClass <> nil then
+          AItem := AItemClass.Create(FDesignBox);
+      end;
 
       if AItem <> nil then
       begin

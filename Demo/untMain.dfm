@@ -71,7 +71,6 @@ object frmMain: TfrmMain
     PageHeightMM = 100
     OnChange = DesignBox1Change
     ExplicitTop = 87
-    ExplicitWidth = 709
   end
   object Panel1: TPanel
     Left = 0
@@ -81,7 +80,6 @@ object frmMain: TfrmMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitWidth = 725
     object Image1: TImage
       Left = 136
       Top = -7
@@ -235,7 +233,6 @@ object frmMain: TfrmMain
     Height = 19
     Panels = <>
     SimplePanel = True
-    ExplicitWidth = 725
   end
   object Panel2: TPanel
     Left = 0
@@ -245,7 +242,20 @@ object frmMain: TfrmMain
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
-    ExplicitWidth = 725
+    object Label1: TLabel
+      Left = 453
+      Top = 13
+      Width = 61
+      Height = 15
+      Caption = 'Page Width'
+    end
+    object Label2: TLabel
+      Left = 605
+      Top = 13
+      Width = 36
+      Height = 15
+      Caption = 'Height'
+    end
     object Button1: TButton
       Left = 8
       Top = 10
@@ -263,8 +273,8 @@ object frmMain: TfrmMain
       TabOrder = 1
     end
     object CheckBox3: TCheckBox
-      Left = 192
-      Top = 10
+      Left = 177
+      Top = 13
       Width = 97
       Height = 17
       Caption = 'Rulers'
@@ -272,6 +282,30 @@ object frmMain: TfrmMain
       State = cbChecked
       TabOrder = 2
       OnClick = CheckBox3Click
+    end
+    object spinWidth: TSpinEdit
+      Left = 523
+      Top = 10
+      Width = 66
+      Height = 24
+      Increment = 10
+      MaxValue = 0
+      MinValue = 0
+      TabOrder = 3
+      Value = 100
+      OnChange = spinWidthChange
+    end
+    object spinHeight: TSpinEdit
+      Left = 647
+      Top = 10
+      Width = 63
+      Height = 24
+      Increment = 10
+      MaxValue = 0
+      MinValue = 0
+      TabOrder = 4
+      Value = 100
+      OnChange = spinHeightChange
     end
   end
   object PopupMenu1: TPopupMenu

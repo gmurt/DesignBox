@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, System.Generics.Collections,
-  System.Types, DesignBox, Vcl.Imaging.pngimage, System.Actions, Vcl.ActnList, Vcl.Menus, Vcl.ComCtrls;
+  System.Types, DesignBox, Vcl.Imaging.pngimage, System.Actions, Vcl.ActnList, Vcl.Menus, Vcl.ComCtrls, Vcl.Samples.Spin;
 
 type
   TfrmMain = class(TForm)
@@ -48,6 +48,10 @@ type
     actUndo: TAction;
     actRedo: TAction;
     CheckBox3: TCheckBox;
+    spinWidth: TSpinEdit;
+    spinHeight: TSpinEdit;
+    Label1: TLabel;
+    Label2: TLabel;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -73,6 +77,8 @@ type
     procedure actRedoExecute(Sender: TObject);
     procedure DesignBox1Change(Sender: TObject);
     procedure CheckBox3Click(Sender: TObject);
+    procedure spinWidthChange(Sender: TObject);
+    procedure spinHeightChange(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -259,11 +265,27 @@ begin
   dlgBorderColor.Color := clWebNavy;
   dlgFillColor.Color := clWebLightSkyBlue;
   txtTextItem.text := 'Some Text';
+  spinWidth.value := Designbox1.PageWidthMM;
+  spinHeight.Value := DesignBox1.PageHeightMM;
+  spinHeight.MinValue := 10;
+  spinHeight.MaxValue := 1000;
+  spinWidth.MinValue := 10;
+  spinWidth.MaxValue := 1000;
 end;
 
 procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
 begin
   UpdateActionStates;
+end;
+
+procedure TfrmMain.spinHeightChange(Sender: TObject);
+begin
+  DesignBox1.PageHeightMM := spinHeight.Value;
+end;
+
+procedure TfrmMain.spinWidthChange(Sender: TObject);
+begin
+  DesignBox1.PageWidthMM := spinWidth.Value;
 end;
 
 procedure TfrmMain.txtTextItemChange(Sender: TObject);
