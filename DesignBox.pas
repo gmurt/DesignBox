@@ -1,5 +1,6 @@
 unit DesignBox;
 
+{ TODO : Grid not being drawn correctly - set to 20mm and it's drawing @ 25mm - https://i.imgur.com/bcM8KiS.png - appears to be because MMtoPixels using Screen DPI whereas others are using fixed 96 dpi }
 { TODO : Snap to Grid not working as expected }
 { TODO : Undo goes back "too far" (UndoList[-1] ?) and then won't redo }
 { TODO : Drag to select, followed by a single click off-object (to de-select) erases the grid }
@@ -227,6 +228,7 @@ type
   private
     FDesignBox: TDesignBox;
     function GetSelectedCount: integer;
+  protected
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
@@ -282,6 +284,7 @@ type
     procedure Assign(Source: TPersistent); override;
     procedure LoadFromJsonObject(AJson: TJsonObject);
     procedure SaveToJsonObject(AJson: TJsonObject);
+    function PixelSize: integer;
   published
     property Color: TColor read FColor write SetColor default $00EEEEEE;
     property SizeMm: integer read FSizeMm write SetSizeMm default 5;
@@ -335,6 +338,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    function  SelectedItemsPixelRect: TRect;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -389,6 +393,7 @@ uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes, Forms;
 const
   C_HIGHLIGHT_COLOR = clHotlight;
   C_SELECTBOX_INFLATE = 2;
+  C_DPI = 96;
 
 procedure Register;
 begin
@@ -397,7 +402,7 @@ end;
 
 function MmToPixels(AValue: single): single;
 begin
-  Result := (Screen.PixelsPerInch / 25.4) * AValue;
+  Result := ({Screen.PixelsPerInch} C_DPI / 25.4) * AValue;
 end;
 
 { TDesignBoxItemInterface }
@@ -559,7 +564,6 @@ end;
 procedure TDesignBox.LoadFromJson(AJsonData: string);
 var
   AJson: TJSONObject;
-  aColor: TColor;
 begin
   AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
   try
@@ -623,8 +627,9 @@ begin
 
   if (FDragging) and (FItems.SelectedCount > 0) then
   begin
-    if (ssShift in Shift) or FGridOptions.SnapToGrid then
+    if (ssCtrl in Shift) or FGridOptions.SnapToGrid then
     begin
+
       AChangeX := Abs(X - FMouseDownPos.X);
       AChangeY := Abs(Y - FMouseDownPos.Y);
 
@@ -632,7 +637,9 @@ begin
         Y := FMouseDownPos.Y
       else
         X := FMouseDownPos.X;
+
     end;
+
     for AItem in FItems do
     begin
       if AItem.Selected and (canMove in AItem.Options) then
@@ -717,7 +724,7 @@ const
   C_BIG_MARK = 10;
   C_LITTLE_MARK = 5;
 begin
-  APxPerMm := 96 / 25.4;
+  APxPerMm := C_DPI/ 25.4;
 
   ACanvas.Brush.Color := fRulerOptions.BackgroundColor;
   ACanvas.Pen.Style := psClear;
@@ -900,7 +907,7 @@ end;
 
 procedure TDesignBox.ResizeCanvas;
 begin
-  FBuffer.SetSize(Round((96/25.4)*FPageSizeMM.Width)+1, Round((96/25.4)*FPageSizeMM.Height)+1);
+  FBuffer.SetSize(Round((C_DPI / 25.4)*FPageSizeMM.Width)+1, Round((C_DPI / 25.4)*FPageSizeMM.Height)+1);
 end;
 
 procedure TDesignBox.SaveSnapShot(aForce: boolean);
@@ -944,6 +951,35 @@ begin
   finally
     AJson.Free;
   end;
+end;
+
+function TDesignBox.SelectedItemsPixelRect: TRect;
+var
+  II: Integer;
+begin
+  if FSelectedItems.Count = 0 then
+  begin
+    result.left := 0; result.Top := 0; result.Width := 0; result.Height := 0;
+    exit;
+  end;
+
+  // find the maximum extent of all selected objects as a Rect in MM.
+  result.left := fSelectedItems[0].RectPixels.Left;
+  result.Top := fSelectedItems[0].RectPixels.Top;
+  result.Right:= FSelectedItems[0].RectPixels.Width + FSelectedItems[0].RectPixels.Left;
+  result.Bottom := FSelectedItems[0].RectPixels.Height + FSelectedItems[0].RectPixels.Top;
+  for II := 1 to fSelectedItems.Count-1 do
+  begin
+    if fSelectedItems[II].RectPixels.Left < result.Left then
+      result.Left := fSelectedItems[II].RectPixels.Left;
+    if fSelectedItems[II].RectPixels.Top < result.Top then
+      result.Top := fSelectedItems[II].RectPixels.Top;
+    if fSelectedItems[II].RectPixels.Width + fSelectedItems[II].RectPixels.Left > result.Right then
+      result.Right := fSelectedItems[II].RectPixels.Width + fSelectedItems[II].RectPixels.Left;
+    if fSelectedItems[II].RectPixels.Height + fSelectedItems[II].RectPixels.Top > result.Bottom then
+      result.Bottom := fSelectedItems[II].RectPixels.Height + fSelectedItems[II].RectPixels.Top;
+  end;
+
 end;
 
 procedure TDesignBox.SendBackwards;
@@ -1083,8 +1119,8 @@ begin
   ACanvas.Rectangle(RectPixels);
   ACanvas.Font.Assign(FFont);
   // calculate width/height...
-  FWidthMM := (ACanvas.TextWidth(FText) / 96) * 25.4;
-  FHeightMM := (ACanvas.TextHeight(FText) / 96) * 25.4;
+  FWidthMM := (ACanvas.TextWidth(FText) / C_DPI) * 25.4;
+  FHeightMM := (ACanvas.TextHeight(FText) / C_DPI) * 25.4;
   ACanvas.Brush.Style := bsClear;
   ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
 end;
@@ -1168,8 +1204,8 @@ end;
 
 procedure TDesignBoxBaseItem.OffsetByPixels(X, Y: integer; const ARedraw: Boolean = True);
 begin
-  FPositionMM.X := FPositionMM.X + ((x / 96) * 25.4);
-  FPositionMM.Y := FPositionMM.Y + ((y / 96) * 25.4);
+  FPositionMM.X := FPositionMM.X + ((x / C_DPI) * 25.4);
+  FPositionMM.Y := FPositionMM.Y + ((y / C_DPI) * 25.4);
   if ARedraw then
     Changed;
 end;
@@ -1181,10 +1217,10 @@ end;
 
 function TDesignBoxBaseItem.RectPixels: TRect;
 begin
-  Result.Left := Round((96 / 25.4) *FPositionMM.X);
-  Result.Top := Round((96 / 25.4) *FPositionMM.Y);
-  Result.Right := Round(((FPositionMM.X+FWidthMM) / 25.4) * 96);
-  Result.Bottom := Round(((FPositionMM.Y + FHeightMM) / 25.4) * 96);
+  Result.Left := Round((C_DPI / 25.4) *FPositionMM.X);
+  Result.Top := Round((C_DPI / 25.4) *FPositionMM.Y);
+  Result.Right := Round(((FPositionMM.X+FWidthMM) / 25.4) * C_DPI);
+  Result.Bottom := Round(((FPositionMM.Y + FHeightMM) / 25.4) * C_DPI);
 end;
 
 function TDesignBoxBaseItem.RectsIntersect(ARect: TRect): Boolean;
@@ -1445,8 +1481,8 @@ end;
 procedure TDesignBoxItemGraphic.PaintToCanvas(ACanvas: TCanvas);
 begin
   // calculate width/height...
-  FWidthMM := (FGraphic.Width / 96) * 25.4;
-  FHeightMM := (FGraphic.Height / 96) * 25.4;
+  FWidthMM := (FGraphic.Width / C_DPI) * 25.4;
+  FHeightMM := (FGraphic.Height / C_DPI) * 25.4;
   ACanvas.Draw(RectPixels.Left, RectPixels.Top, FGraphic.Graphic);
 end;
 
@@ -1794,6 +1830,11 @@ begin
     fColor:= StringToColor(AJson.Values['gridColor'].value);
   if assigned(AJson.Values['gridSnapTo']) then
     fSnapToGrid := TJsonBool(AJson.values['gridSnapTo']).asBoolean;
+end;
+
+function TDesignBoxGridOptions.PixelSize: integer;
+begin
+  result := Round((C_DPI / 25.4) * FSizeMm);
 end;
 
 procedure TDesignBoxGridOptions.SaveToJsonObject(AJson: TJsonObject);

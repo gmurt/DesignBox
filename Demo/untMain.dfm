@@ -81,8 +81,6 @@ object frmMain: TfrmMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 2
-    ExplicitWidth = 773
     object Image1: TImage
       Left = 290
       Top = 3
@@ -669,7 +667,6 @@ object frmMain: TfrmMain
     Height = 19
     Panels = <>
     SimplePanel = True
-    ExplicitWidth = 773
   end
   object Panel2: TPanel
     Left = 0
@@ -679,17 +676,16 @@ object frmMain: TfrmMain
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
-    ExplicitWidth = 773
     object Label1: TLabel
-      Left = 453
-      Top = 13
+      Left = 516
+      Top = 9
       Width = 61
       Height = 15
       Caption = 'Page Width'
     end
     object Label2: TLabel
-      Left = 605
-      Top = 13
+      Left = 668
+      Top = 9
       Width = 36
       Height = 15
       Caption = 'Height'
@@ -722,26 +718,26 @@ object frmMain: TfrmMain
       OnClick = CheckBox3Click
     end
     object spinWidth: TSpinEdit
-      Left = 523
-      Top = 10
+      Left = 586
+      Top = 6
       Width = 66
       Height = 24
       Increment = 10
       MaxValue = 0
       MinValue = 0
-      TabOrder = 3
+      TabOrder = 6
       Value = 100
       OnChange = spinWidthChange
     end
     object spinHeight: TSpinEdit
-      Left = 647
-      Top = 10
+      Left = 710
+      Top = 6
       Width = 63
       Height = 24
       Increment = 10
       MaxValue = 0
       MinValue = 0
-      TabOrder = 4
+      TabOrder = 7
       Value = 100
       OnChange = spinHeightChange
     end
@@ -751,7 +747,7 @@ object frmMain: TfrmMain
       Width = 42
       Height = 17
       Caption = 'Grid'
-      TabOrder = 5
+      TabOrder = 3
       OnClick = chkGridVisibleClick
     end
     object SpinEdit1: TSpinEdit
@@ -761,17 +757,17 @@ object frmMain: TfrmMain
       Height = 24
       MaxValue = 0
       MinValue = 0
-      TabOrder = 6
+      TabOrder = 4
       Value = 5
       OnChange = SpinEdit1Change
     end
     object chkSnapTogrid: TCheckBox
       Left = 358
       Top = 13
-      Width = 56
+      Width = 89
       Height = 17
-      Caption = 'Snap to'
-      TabOrder = 7
+      Caption = 'Snap to Grid'
+      TabOrder = 5
       OnClick = chkSnapTogridClick
     end
   end
