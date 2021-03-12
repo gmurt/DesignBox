@@ -839,6 +839,7 @@ begin
 
   ACanvas.Pen.Color := FGridOptions.Color;
   ACanvas.Pen.Mode := pmCopy;
+  ACanvas.Pen.Width := 1;
 
   X := 0;
   while X < APageWidth do
