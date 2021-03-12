@@ -15,7 +15,6 @@ type
     Bevel2: TBevel;
     Bevel3: TBevel;
     Bevel4: TBevel;
-    DesignBox1: TDesignBox;
     Image1: TImage;
     btnAddGraphic: TButton;
     btnSave: TButton;
@@ -57,8 +56,11 @@ type
     actSendBackwards: TAction;
     SendBackwards1: TMenuItem;
     BringForwards1: TMenuItem;
-    CheckBox4: TCheckBox;
+    chkGridVisible: TCheckBox;
     SpinEdit1: TSpinEdit;
+    DesignBox1: TDesignBox;
+    chkSnapTogrid: TCheckBox;
+    Label3: TLabel;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -90,7 +92,8 @@ type
     procedure actBringForwardsExecute(Sender: TObject);
     procedure actSendBackwardsExecute(Sender: TObject);
     procedure SpinEdit1Change(Sender: TObject);
-    procedure CheckBox4Click(Sender: TObject);
+    procedure chkGridVisibleClick(Sender: TObject);
+    procedure chkSnapTogridClick(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -214,12 +217,17 @@ end;
 
 procedure TfrmMain.CheckBox3Click(Sender: TObject);
 begin
-  DesignBox1.ShowRulers := CheckBox3.Checked;
+  DesignBox1.RulerOptions.Visible := CheckBox3.Checked;
 end;
 
-procedure TfrmMain.CheckBox4Click(Sender: TObject);
+procedure TfrmMain.chkGridVisibleClick(Sender: TObject);
 begin
-  DesignBox1.GridOptions.Visible := CheckBox4.Checked;
+  DesignBox1.GridOptions.Visible := TCheckBox(Sender).Checked;
+end;
+
+procedure TfrmMain.chkSnapTogridClick(Sender: TObject);
+begin
+  DesignBox1.GridOptions.SnapToGrid := TCheckBox(Sender).Checked;
 end;
 
 procedure TfrmMain.btnLoadClick(Sender: TObject);
@@ -301,6 +309,8 @@ begin
   dlgBorderColor.Color := clWebNavy;
   dlgFillColor.Color := clWebLightSkyBlue;
   txtTextItem.text := 'Some Text';
+  chkGridVisible.Checked := DesignBox1.GridOptions.Visible;
+  chkSnapTogrid.Checked := DesignBox1.GridOptions.SnapToGrid;
   spinWidth.value := Designbox1.PageWidthMM;
   spinHeight.Value := DesignBox1.PageHeightMM;
   spinHeight.MinValue := 10;

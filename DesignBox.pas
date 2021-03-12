@@ -1,17 +1,14 @@
 unit DesignBox;
 
-{ TODO 2 : Zoom / Scale facility }
-{ TODO 99 : Editable text items - no keyboard events on TGraphicControl - maybe need to inherit from TWinControl and add our own Canvas - or just ignore and go with a "property sheet" UI paradigm ? }
-{ TODO 1 : Lines - aka two point selection) }
-{ TODO 1 : Resize graphics (4 point selection box) }
-{ TODO 1 : fill styles for Shapes, i.e. FDiagonal etc }
-{ TODO 2 : background image }
+{ TODO : Snap to Grid not working as expected }
+{ TODO : Undo goes back "too far" (UndoList[-1] ?) and then won't redo }
+{ TODO : Drag to select, followed by a single click off-object (to de-select) erases the grid }
 
 interface
 
 uses
   Windows, Messages, System.SysUtils, System.Classes, Vcl.Controls, System.Types, System.Generics.Collections,
-  Graphics, System.Generics.Defaults, Json;
+  vcl.Graphics, System.Generics.Defaults, System.Json;
 
 type
 
@@ -249,22 +246,47 @@ type
 
   end;
 
+  TDesignBoxRulerOptions = class(TPersistent)
+  private
+    fDesignBox : TDesignBox;
+    fForegroundColor: TColor;
+    fBackgroundColor: TColor;
+    fVisible: Boolean;
+    procedure SetBackgroundColor(const Value: TColor);
+    procedure SetForegroundColor(const Value: TColor);
+    procedure SetVisible(const Value: boolean);
+  public
+    constructor Create(ADesignBox: TDesignBox); virtual;
+    procedure Assign(Source: TPersistent); override;
+    procedure LoadFromJsonObject(AJson: TJsonObject);
+    procedure SaveToJsonObject(AJson: TJsonObject);
+  published
+    property ForegroundColor: TColor read fForegroundColor write SetForegroundColor default clBlack;
+    property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clWhite;
+    property Visible: boolean read fVisible write SetVisible default true;
+  end;
+
   TDesignBoxGridOptions = class(TPersistent)
   private
     FDesignBox: TDesignBox;
     FVisible: Boolean;
     FSizeMm: integer;
     FColor: TColor;
+    FSnapToGrid: boolean;
     procedure SetVisible(const Value: Boolean);
     procedure SetSizeMm(const Value: integer);
     procedure SetColor(const Value: TColor);
+    procedure SetSnapToGrid(const Value: Boolean);
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     procedure Assign(Source: TPersistent); override;
+    procedure LoadFromJsonObject(AJson: TJsonObject);
+    procedure SaveToJsonObject(AJson: TJsonObject);
   published
     property Color: TColor read FColor write SetColor default $00EEEEEE;
     property SizeMm: integer read FSizeMm write SetSizeMm default 5;
     property Visible: Boolean read FVisible write SetVisible default False;
+    property SnapToGrid: Boolean read FSnapToGrid write SetSnapToGrid default False;
   end;
 
   TDesignBox = class(TGraphicControl)
@@ -285,11 +307,8 @@ type
     FPageSizeMM: TSize;
     FUndoList: TDesignUndoList;
     FOnChange: TNotifyEvent;
-    FShowRulers: Boolean;
-    fRulerBackground: TColor;
-    fRulerForeground: TColor;
     FGridOptions: TDesignBoxGridOptions;
-
+    FRulerOptions: TDesignBoxRulerOptions;
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -300,17 +319,15 @@ type
     procedure SetPen(const Value: TPen);
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
-    procedure SetShowRulers(const Value: Boolean);
     procedure DrawRulers(ACanvas: TCanvas);
     procedure ResizeCanvas;
     function GetPageHeightMM: integer;
     function GetPageWidthMM: integer;
     procedure SetPageHeightMM(const Value: integer);
     procedure SetPageWidthMM(const Value: integer);
-    procedure SetRulerBackground(const Value: TColor);
-    procedure SetRulerForeground(const Value: TColor);
     procedure SetGridOptions(const Value: TDesignBoxGridOptions);
     procedure DrawGrid(ACanvas: TCanvas);
+    procedure SetRulerOptions(const Value: TDesignBoxRulerOptions);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -349,9 +366,10 @@ type
     property Align;
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
     property PopupMenu;
-    property RulerBackground: TColor read fRulerBackground write SetRulerBackground default clWhite;
-    property RulerForeground: TColor read fRulerForeground write SetRulerForeground default clBlack;
-    property ShowRulers: Boolean read FShowRulers write SetShowRulers default True;
+    property RulerOptions: TDesignBoxRulerOptions read fRulerOptions write SetRulerOptions;
+//    property RulerBackground: TColor read GetRulerBackground write SetRulerBackground default clWhite;
+//    property RulerForeground: TColor read GetRulerForeground write SetRulerForeground default clBlack;
+//    property ShowRulers: Boolean read GetShowRulers write SetShowRulers default True;
     property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
     property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -457,17 +475,19 @@ begin
   FItems := TDesignBoxItemList.Create(Self);
   FSelectedItems := TDesignBoxItemList.Create(Self);
   FSelectedItems.OwnsObjects := False;
-  FUndoList := TDesignUndoList.Create(Self);
   FGridOptions := TDesignBoxGridOptions.Create(Self);
+  FRulerOptions := TDesignBoxRulerOptions.Create(Self);
   FPageSizeMM.Width := 100;
   FPageSizeMM.Height := 100;
+
+  // This must be after creating any sub-objects as it calls CreateSnapshot and we need all objects instanciated
+  FUndoList := TDesignUndoList.Create(Self);
 
   ResizeCanvas;
   FBrush.OnChange := OnBrushChanged;
   FFont.OnChange := OnFontChanged;;
   FPen.OnChange := OnPenChanged;
   FBackgroundColor := clWhite;
-  FShowRulers := True;
   FUpdating := False;
   Redraw;
 end;
@@ -482,6 +502,7 @@ begin
   FPen.Free;
   FUndoList.Free;
   FGridOptions.Free;
+  FRulerOptions.Free;
   inherited;
 end;
 
@@ -538,15 +559,17 @@ end;
 procedure TDesignBox.LoadFromJson(AJsonData: string);
 var
   AJson: TJSONObject;
+  aColor: TColor;
 begin
   AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
   try
-    if assigned(AJson.Values['rulers']) then
-      ShowRulers := TJsonBool(AJson.values['rulers']).asBoolean;
+    fRulerOptions.LoadFromJsonObject(AJson);
     if assigned(AJson.Values['pageWidthMM']) then
       PageWidthMM := TJsonNumber(AJson.values['pageWidthMM']).asInt;
     if assigned(AJson.Values['pageHeightMM']) then
       PageHeightMM := TJsonNumber(AJson.values['pageHeightMM']).asInt;
+    if assigned(AJson.Values['backgroundColor']) then
+      fBackgroundColor := StringToColor(AJson.values['backgroundColor'].value);
     FItems.LoadFromJson(AJson);
     Redraw;
     if Assigned(FOnChange) then
@@ -584,6 +607,7 @@ begin
 
   FDragging := True;
   FMouseXY := Point(X, Y);
+
   if (AItem <> nil) and (AItem.Selected) and (Assigned(FOnSelectItem)) then
     FOnSelectItem(Self, AItem);
 end;
@@ -599,7 +623,7 @@ begin
 
   if (FDragging) and (FItems.SelectedCount > 0) then
   begin
-    if (ssShift in Shift) then
+    if (ssShift in Shift) or FGridOptions.SnapToGrid then
     begin
       AChangeX := Abs(X - FMouseDownPos.X);
       AChangeY := Abs(Y - FMouseDownPos.Y);
@@ -640,7 +664,7 @@ begin
     end;
   end;
   FDragging := False;
-  Invalidate;
+  Redraw; // invalidate
   RecordSnapshot;
 end;
 
@@ -695,17 +719,17 @@ const
 begin
   APxPerMm := 96 / 25.4;
 
-  ACanvas.Brush.Color := fRulerBackground;
+  ACanvas.Brush.Color := fRulerOptions.BackgroundColor;
   ACanvas.Pen.Style := psClear;
   ACanvas.FillRect(Rect(0, 0, Width, FPageOffset.Y));
   ACanvas.FillRect(Rect(0, 0, FPageOffset.X, Height));
   ACanvas.Pen.Style := psSolid;
-  ACanvas.Pen.Color := fRulerForeground;
+  ACanvas.Pen.Color := fRulerOptions.ForegroundColor;
   ACanvas.Pen.Mode := pmCopy;
   ACanvas.Polyline([Point(0, FPageOffset.Y), Point(Width, FPageOffset.Y)]);
   ACanvas.Polyline([Point(FPageOffset.X, 0), Point(FPageOffset.X, Height)]);
 
-  ACanvas.Font.Color := fRulerForeground;
+  ACanvas.Font.Color := fRulerOptions.ForegroundColor;
   AMm := 1;
   while (AMm*APxPerMM) < Width do
   begin
@@ -784,7 +808,7 @@ var
   aRulerWidth: integer;
 begin
   aRulerWidth := Canvas.TextWidth('9999');
-  case FShowRulers of
+  case FRulerOptions.Visible of
     True: FPageOffset := Point(aRulerWidth, aRulerWidth); // slightly narrower
     False: FPageOffset := Point(0, 0);
   end;
@@ -796,12 +820,10 @@ begin
   if (FBuffer.Width = 0) then
     Redraw;
 
-
-  if FShowRulers then
+  if FRulerOptions.Visible then
     DrawRulers(Canvas);
 
   Canvas.Draw(FPageOffset.X, FPageOffset.Y, FBuffer);
-  // BitBlt(Canvas.Handle, fPageOffset.X, fPageOffset.Y, fBuffer.Width, fBuffer.Height, fBuffer.Canvas.Handle, 0,0, SRCCOPY);   // this doesn't help the flicker
 
   if (FDragging) and (FItems.SelectedCount = 0) then
   begin
@@ -850,6 +872,7 @@ begin
 
   if FGridOptions.Visible then
     DrawGrid(FBuffer.Canvas);
+
   if FItems.Count > 0 then
   begin
     for AItem in FItems do
@@ -905,9 +928,11 @@ var
 begin
   AJson := TJsonObject.Create;
   try
-    AJson.AddPair('rulers', TJsonBool.Create(ShowRulers));
+    FRulerOptions.SaveToJsonObject(AJSon);
+    FGridOptions.SaveToJsonObject(AJson);
     AJson.AddPair('pageWidthMM', TJsonNumber.Create(PageWidthMM));
     AJson.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
+    AJson.AddPair('backgroundColor', ColorToString(FBackgroundColor));
     FItems.SaveToJson(AJson);
     AStringStream := TStringStream.Create(AJson.ToJSON);
     try
@@ -1010,31 +1035,9 @@ begin
   FPen.Assign(Value);
 end;
 
-procedure TDesignBox.SetRulerBackground(const Value: TColor);
+procedure TDesignBox.SetRulerOptions(const Value: TDesignBoxRulerOptions);
 begin
-  if fRulerBackground <> Value then
-  begin
-    fRulerBackground := Value;
-    Invalidate;
-  end;
-end;
-
-procedure TDesignBox.SetRulerForeground(const Value: TColor);
-begin
-  if fRulerForeground <> Value then
-  begin
-    fRulerForeground := Value;
-    Invalidate;
-  end;
-end;
-
-procedure TDesignBox.SetShowRulers(const Value: Boolean);
-begin
-  if FShowRulers <> Value then
-  begin
-    FShowRulers := Value;
-    Invalidate;
-  end;
+  fRulerOptions.assign(Value);
 end;
 
 procedure TDesignBox.Undo;
@@ -1778,6 +1781,26 @@ begin
   FVisible := False;
   FColor := $00EEEEEE;
   FSizeMm := 5;
+  FSnapToGrid := false;
+end;
+
+procedure TDesignBoxGridOptions.LoadFromJsonObject(AJson: TJsonObject);
+begin
+  if assigned(AJson.Values['gridVisible']) then
+    fVisible := TJsonBool(AJson.values['gridVisible']).asBoolean;
+  if assigned(AJson.Values['gridSizeMM']) then
+    fSizeMM := TJsonNumber(AJson.Values['gridSizeMM']).AsInt;
+  if assigned(AJson.Values['gridColor']) then
+    fColor:= StringToColor(AJson.Values['gridColor'].value);
+  if assigned(AJson.Values['gridSnapTo']) then
+    fSnapToGrid := TJsonBool(AJson.values['gridSnapTo']).asBoolean;
+end;
+
+procedure TDesignBoxGridOptions.SaveToJsonObject(AJson: TJsonObject);
+begin
+  AJson.AddPair('gridVisible', TJsonBool.Create(fVisible));
+  AJson.AddPair('gridSizeMM', TJsonNumber.Create(fSizeMM));
+  AJson.AddPair('gridSnapTo', TJsonBool.Create(fSnapToGrid));
 end;
 
 procedure TDesignBoxGridOptions.SetColor(const Value: TColor);
@@ -1796,6 +1819,11 @@ begin
     FSizeMm := Value;
     FDesignBox.Redraw;
   end;
+end;
+
+procedure TDesignBoxGridOptions.SetSnapToGrid(const Value: Boolean);
+begin
+  FSnapToGrid := Value;
 end;
 
 procedure TDesignBoxGridOptions.SetVisible(const Value: Boolean);
@@ -1854,7 +1882,71 @@ end;
 
 procedure TDesignBoxItemOutlineShape.SetPen(const Value: TPen);
 begin
+  fPen.Assign(Value);
+end;
 
+{ TDesignBoxRulerOptions }
+
+procedure TDesignBoxRulerOptions.Assign(Source: TPersistent);
+begin
+  inherited;
+  FVisible := (Source as TDesignBoxRulerOptions).Visible;
+  FForegroundColor := (Source as TDesignBoxRulerOptions).ForegroundColor;
+  FBackgroundColor := (Source as TDesignBoxRulerOptions).BackgroundColor;
+  FDesignBox.Invalidate;
+end;
+
+constructor TDesignBoxRulerOptions.Create(ADesignBox: TDesignBox);
+begin
+  inherited Create;
+  fDesignBox := aDesignBox;
+  fBackgroundColor := clWhite;
+  fForegroundColor := clBlack;
+  fVisible := true;
+end;
+
+procedure TDesignBoxRulerOptions.LoadFromJsonObject(AJson: TJsonObject);
+begin
+  if assigned(AJson.Values['rulersVisible']) then
+    fVisible := TJsonBool(AJson.values['rulersVisible']).asBoolean;
+  if assigned(AJson.Values['rulerForegroundColor']) then
+    fForegroundColor := StringToColor(AJson.Values['rulerForegroundColor'].value);
+  if assigned(AJson.Values['rulerBackgroundColor']) then
+    fBackgroundColor := StringToColor(AJson.Values['rulerBackgroundColor'].value);
+end;
+
+procedure TDesignBoxRulerOptions.SaveToJsonObject(AJson: TJsonObject);
+begin
+  AJson.AddPair('rulersVisible', TJsonBool.Create(fVisible));
+  AJson.AddPair('rulerForegroundColor', ColorToString(fForegroundColor));
+  AJson.AddPair('rulerBackgroundColor', ColorToString(fBackgroundColor));
+end;
+
+procedure TDesignBoxRulerOptions.SetBackgroundColor(const Value: TColor);
+begin
+  if fBackgroundColor <> Value then
+  begin
+    fBackgroundColor := Value;
+    fDesignBox.Invalidate;
+  end;
+end;
+
+procedure TDesignBoxRulerOptions.SetForegroundColor(const Value: TColor);
+begin
+  if fForegroundColor <> Value then
+  begin
+    fForegroundColor := Value;
+    fDesignBox.Invalidate;
+  end;
+end;
+
+procedure TDesignBoxRulerOptions.SetVisible(const Value: boolean);
+begin
+  if fVisible <> Value then
+  begin
+    fVisible := Value;
+    fDesignBox.Invalidate;
+  end;
 end;
 
 initialization
