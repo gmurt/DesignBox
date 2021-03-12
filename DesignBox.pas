@@ -166,19 +166,17 @@ type
     //fSelectedHandle: TDragHandlePos; // if so which one ?
   protected
     procedure DrawSelectedRect(ACanvas: TCanvas); override;
+
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
+    procedure SetCoords(ALeftMM, ATopMM, ARightMM, ABottomMM: single);
   end;
 
-  TDbShape = (dbEllipse, dbRectangle, dbLine);
-
-  TDesignBoxItemShape = class(TDesignBoxItemSizable, IBrushObject, IPenObject)
+  TDesignBoxItemFilledShape = class(TDesignBoxItemSizable, IBrushObject, IPenObject)
   private
-    FShape: TdbShape;
     FBrush: TDesignBrush;
     FPen: TDesignPen;
-
     procedure DoBrushChange(Sender: TObject);
     procedure DoPenChange(Sender: TObject);
     function GetBrush: TBrush;
@@ -194,6 +192,22 @@ type
     procedure LoadFromJson(AJson: TJsonObject); override;
     property Brush: TBrush read GetBrush write SetBrush;
     property Pen: TPen read GetPen write SetPen;
+  end;
+
+  TDesignBoxItemEllipse = class(TDesignBoxItemFilledShape)
+  protected
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
+  end;
+
+  TDesignBoxItemRectangle = class(TDesignBoxItemFilledShape)
+  private
+    FRoundnessMm: single;
+    procedure SetRoundnessMm(const Value: single);
+  protected
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
+  public
+    constructor Create(ADesignBox: TDesignBox); override;
+    property RoundnessMm: single read FRoundnessMm write SetRoundnessMm;
   end;
 
   TDesignBoxItemGraphic = class(TDesignBoxItemSizable)
@@ -214,15 +228,14 @@ type
   private
     FDesignBox: TDesignBox;
     function GetSelectedCount: integer;
-    function AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
-    function AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
-    function AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
-    function AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
-    function Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxBaseItem; overload;
+    function AddRectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle;
+    function AddEllipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;
+    function Add(AItem: TDesignBoxBaseItem; ABoundsMm: TRectF): TDesignBoxBaseItem; overload;
+    function Add(AClass: TDesignBoxBaseItemClass; ABoundsMm: TRectF): TDesignBoxBaseItem; overload;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
     property DesignBox: TDesignBox read fDesignBox;
 
@@ -232,6 +245,24 @@ type
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
 
+  end;
+
+  TDesignBoxGridOptions = class(TPersistent)
+  private
+    FDesignBox: TDesignBox;
+    FVisible: Boolean;
+    FSizeMm: integer;
+    FColor: TColor;
+    procedure SetVisible(const Value: Boolean);
+    procedure SetSizeMm(const Value: integer);
+    procedure SetColor(const Value: TColor);
+  public
+    constructor Create(ADesignBox: TDesignBox); virtual;
+    procedure Assign(Source: TPersistent); override;
+  published
+    property Color: TColor read FColor write SetColor default $00EEEEEE;
+    property SizeMm: integer read FSizeMm write SetSizeMm default 5;
+    property Visible: Boolean read FVisible write SetVisible default False;
   end;
 
   TDesignBox = class(TGraphicControl)
@@ -255,6 +286,7 @@ type
     FShowRulers: Boolean;
     fRulerBackground: TColor;
     fRulerForeground: TColor;
+    FGridOptions: TDesignBoxGridOptions;
 
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
@@ -275,6 +307,8 @@ type
     procedure SetPageWidthMM(const Value: integer);
     procedure SetRulerBackground(const Value: TColor);
     procedure SetRulerForeground(const Value: TColor);
+    procedure SetGridOptions(const Value: TDesignBoxGridOptions);
+    procedure DrawGrid(ACanvas: TCanvas);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -292,7 +326,9 @@ type
     procedure SaveToFile(AFilename: string);
     procedure LoadFromFile(AFilename: string);
     procedure BringToFront;
+    procedure BringForwards;
     procedure SendToBack;
+    procedure SendBackwards;
     procedure SetPageSize(AWidthMM, AHeightMM: integer); overload;
     procedure SetPageSize(APageSize: TSize); overload;
     property Brush: TBrush read FBrush write SetBrush;
@@ -309,10 +345,7 @@ type
     function CanRedo : boolean;
   published
     property Align;
-    property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
-    property OnMouseDown;
-    property OnMouseMove;
-    property OnMouseUp;
+    property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
     property PopupMenu;
     property RulerBackground: TColor read fRulerBackground write SetRulerBackground default clWhite;
     property RulerForeground: TColor read fRulerForeground write SetRulerForeground default clBlack;
@@ -320,13 +353,18 @@ type
     property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
     property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property OnMouseDown;
+    property OnMouseMove;
+    property OnMouseUp;
+    property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
+
   end;
 
 procedure Register;
 
 implementation
 
-uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes;
+uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes, Forms;
 
 const
   C_HIGHLIGHT_COLOR = clHotlight;
@@ -337,6 +375,10 @@ begin
   RegisterComponents('Samples', [TDesignBox]);
 end;
 
+function MmToPixels(AValue: single): single;
+begin
+  Result := (Screen.PixelsPerInch / 25.4) * AValue;
+end;
 
 { TDesignBoxItemInterface }
 
@@ -359,6 +401,20 @@ begin
 end;
 
 { TDesignBox }
+
+procedure TDesignBox.BringForwards;
+var
+  AItem: TDesignBoxBaseItem;
+  AIndex: integer;
+begin
+  for AItem in SelectedItems do
+  begin
+    AIndex := FItems.IndexOf(AItem);
+    if AIndex < FItems.Count-1 then
+      FItems.Move(AIndex, AIndex+1);
+  end;
+  Redraw;
+end;
 
 procedure TDesignBox.BringToFront;
 var
@@ -400,7 +456,7 @@ begin
   FSelectedItems := TDesignBoxItemList.Create(Self);
   FSelectedItems.OwnsObjects := False;
   FUndoList := TDesignUndoList.Create(Self);
-
+  FGridOptions := TDesignBoxGridOptions.Create(Self);
   FPageSizeMM.Width := 100;
   FPageSizeMM.Height := 100;
 
@@ -423,6 +479,7 @@ begin
   FBrush.Free;
   FPen.Free;
   FUndoList.Free;
+  FGridOptions.Free;
   inherited;
 end;
 
@@ -533,6 +590,7 @@ end;
 procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   AItem: TDesignBoxBaseItem;
+  AChangeX, AChangeY: integer;
 begin
   inherited;
   X := X - FPageOffset.X;
@@ -540,6 +598,18 @@ begin
 
   if (FDragging) and (FItems.SelectedCount > 0) then
   begin
+    if (ssShift in Shift) then
+    begin
+      AChangeX := Abs(X - FMouseDownPos.X);
+      AChangeY := Abs(Y - FMouseDownPos.Y);
+
+      if AChangeX > AChangeY then
+        Y := FMouseDownPos.Y
+      else
+        X := FMouseDownPos.X;
+
+    end;
+
     for AItem in FItems do
     begin
       if AItem.Selected and (canMove in AItem.Options) then
@@ -618,7 +688,6 @@ var
   APxPerMM: Extended;
   AMm: integer;
   AMarkSize: integer;
-  tw, th: integer;
   tz : TSize;
 const
   C_BIG_MARK = 10;
@@ -649,8 +718,8 @@ begin
                         Point(Round(AMm*APxPerMm)+FPageOffset.X, FPageOffset.Y)]);
       if AMarkSize = 10 then
       begin
-        tw := ACanvas.TextWidth(AMm.ToString);
-        ACanvas.TextOut((Round(AMm*APxPerMm)+FPageOffset.X) - (tw div 2), FPageOffset.Y-20, AMm.ToString);
+        tz := ACanvas.TextExtent(AMm.ToString);
+        ACanvas.TextOut((Round(AMm*APxPerMm)+FPageOffset.X) - (tz.Width div 2), FPageOffset.Y-20, AMm.ToString);
       end;
     end;
     Inc(AMm);
@@ -668,14 +737,44 @@ begin
                         Point(FPageOffset.X, Round(AMm*APxPerMm)+FPageOffset.Y)]);
       if AMarkSize = 10 then
       begin
-//        th := ACanvas.TextHeight(AMm.ToString);
         tz := ACanvas.TextExtent(AMm.ToString);
         ACanvas.TextOut(FPageOffset.X-tz.width - C_LITTLE_MARK, (Round(AMm*APxPerMm)+FPageOffset.Y) - (tz.Height div 2), AMm.ToString);
       end;
     end;
     Inc(AMm);
   end;
+end;
 
+procedure TDesignBox.DrawGrid(ACanvas: TCanvas);
+var
+  AGridSize: single;
+  x, y: single;
+  APageWidth, APageHeight: integer;
+begin
+  AGridSize := MmToPixels(FGridOptions.SizeMm);
+  APageWidth := Round(MmToPixels(FPageSizeMm.Width));
+  APageHeight := Round(MmToPixels(FPageSizeMm.Height));
+
+  ACanvas.Pen.Color := FGridOptions.Color;
+  ACanvas.Pen.Mode := pmCopy;
+
+  X := 0;
+  while X < APageWidth do
+  begin
+    ACanvas.Pen.Color := FGridOptions.Color;
+    ACanvas.Pen.Mode := pmCopy;
+    ACanvas.MoveTo(Round(x), 0);
+    ACanvas.LineTo(Round(x), APageHeight);
+    X := X + AGridSize;
+  end;
+
+  Y := 0;
+  while Y < APageHeight do
+  begin
+    ACanvas.MoveTo(0, Round(y));
+    ACanvas.LineTo(APageWidth, Round(y));
+    Y := Y + AGridSize;
+  end;
 
 end;
 
@@ -696,6 +795,17 @@ begin
 
   if (FBuffer.Width = 0) then
     Redraw;
+
+  {Canvas.Brush.Color := BackGroundColor;
+  Canvas.Brush.Style := bsSolid;
+  Canvas.Pen.Color := clBlack;
+  Canvas.Rectangle(FPageOffset.X,
+                   FPageOffset.Y,
+                   FBuffer.Width+FPageOffset.X+1,
+                   FBuffer.Height+FPageOffset.Y+1);
+         }
+
+  //DrawGrid(Canvas);
 
   if FShowRulers then
     DrawRulers(Canvas);
@@ -743,12 +853,13 @@ begin
   //FBuffer.Free;
   //FBuffer := TBitmap.Create;
   ResizeCanvas;
-
   FBuffer.Canvas.Brush.Color := BackGroundColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
   FBuffer.Canvas.Pen.Color := clBlack;
   FBuffer.Canvas.Rectangle(0, 0, FBuffer.Width, FBuffer.Height);
-  //FBuffer.Canvas.Brush.Style := bsClear;
+
+  if FGridOptions.Visible then
+    DrawGrid(FBuffer.Canvas);
   if FItems.Count > 0 then
   begin
     for AItem in FItems do
@@ -820,12 +931,34 @@ begin
   end;
 end;
 
+procedure TDesignBox.SendBackwards;
+var
+  AItem: TDesignBoxBaseItem;
+  AIndex: integer;
+  ICount: integer;
+  ASelected: TDesignBoxItemList;
+begin
+  ASelected := SelectedItems;
+  for ICount := FItems.Count-1 downto 0 do
+  begin
+    AItem := ASelected[ICount];
+    AIndex := FItems.IndexOf(AItem);
+    if AIndex > 0 then
+      FItems.Move(AIndex, AIndex-1);
+  end;
+  Redraw;
+end;
+
 procedure TDesignBox.SendToBack;
 var
   AItem: TDesignBoxBaseItem;
+  ICount: integer;
+  ASelected: TDesignBoxItemList;
 begin
-  for AItem in SelectedItems do
+  ASelected := SelectedItems;
+  for ICount := ASelected.Count-1 downto 0 do
   begin
+    AItem := ASelected[ICount];
     FItems.Extract(AItem);
     FItems.Insert(0, AItem);
   end;
@@ -847,6 +980,11 @@ end;
 procedure TDesignBox.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
+end;
+
+procedure TDesignBox.SetGridOptions(const Value: TDesignBoxGridOptions);
+begin
+  FGridOptions.Assign(Value);
 end;
 
 procedure TDesignBox.SetPageHeightMM(const Value: integer);
@@ -1130,12 +1268,7 @@ begin
   AJson.AddPair('width', FWidthMM.ToString);
   AJson.AddPair('height',FHeightMM.ToString);
 end;
-        {
-procedure TDesignBoxBaseItem.SendToBack;
-begin
-  FDesignBox.Items.SendToBack(Self);
-end;
-        }
+
 procedure TDesignBoxBaseItem.SetLeftMM(const Value: single);
 begin
   FPositionMM.X := Value;
@@ -1144,7 +1277,6 @@ end;
 procedure TDesignBoxBaseItem.SetOptions(const Value: TItemOptions);
 begin
   fOptions := Value;
-//  Changed;
 end;
 
 procedure TDesignBoxBaseItem.SetSelectedItem(const Value: Boolean);
@@ -1163,29 +1295,21 @@ end;
 
 { TDesignBoxItemList }
 
-function TDesignBoxItemList.AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+{function TDesignBoxItemList.AddLine(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
 begin
   Result := AddShape(dbLine, ALeftMM, ATopMM, ARightMM, ABottomMM);
+end;}
+
+function TDesignBoxItemList.AddRectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle;
+begin
+  Result := Add(TDesignBoxItemRectangle, ABoundsMm) as TDesignBoxItemRectangle;
+  Result.RoundnessMm := ARoundnessMm;
 end;
 
-function TDesignBoxItemList.AddRectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
-begin
-  Result := AddShape(dbRectangle, ALeftMM, ATopMM, ARightMM, ABottomMM);
-end;
 
-function TDesignBoxItemList.AddShape(AShape: TDbShape; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
+function TDesignBoxItemList.AddEllipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;
 begin
-  Result := TDesignBoxItemShape.Create(FDesignBox);
-  Result.FShape := AShape;
-  Result.LeftMM := ALeftMM;
-  Result.TopMM := ATopMM;
-  Result.FWidthMM := ARightMM - ALeftMM;
-  Result.FHeightMM := ABottomMM - ATopMM;
-  Result.Brush.Assign(FDesignBox.Brush);
-  Result.Pen.Assign(FDesignBox.Pen);
-  Add(Result);
-  FDesignBox.Redraw;
-  FDesignBox.RecordSnapshot;
+  Result := Add(TDesignBoxItemEllipse, ABoundsMm) as TDesignBoxItemEllipse;
 end;
 
 function TDesignBoxItemList.AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
@@ -1202,30 +1326,29 @@ begin
   FDesignBox.RecordSnapshot;
 end;
 
-function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxBaseItem;
+function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ABoundsMm: TRectF): TDesignBoxBaseItem;
 begin
-  result := AClass.Create(FDesignBox);
-  Result.LeftMM := ALeftMM;
-  Result.TopMM := ATopMM;
+  Result := Add(AClass.Create(FDesignBox), ABoundsMm);
+end;
+
+function TDesignBoxItemList.Add(AItem: TDesignBoxBaseItem; ABoundsMm: TRectF): TDesignBoxBaseItem;
+begin
+  Result := AItem;
+  Result.LeftMM := ABoundsMm.Left;
+  Result.TopMM := ABoundsMm.Top;
+  if ABoundsMm.Width > 0 then Result.FWidthMM := ABoundsMm.Height;
+  if ABoundsMm.Height > 0 then Result.FHeightMM := ABoundsMm.Width;
   Add(result);
   FDesignBox.ReDraw;
   FDesignBox.RecordSnapshot;
-end;
 
-function TDesignBoxItemList.AddEllipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemShape;
-begin
-  Result := AddShape(dbEllipse, ALeftMM, ATopMM, ARightMM, ABottomMM);
 end;
 
 function TDesignBoxItemList.AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
   Result := TDesignBoxItemGraphic.Create(FDesignBox);
-  Result.LeftMM := ALeftMM;
-  Result.TopMM := ATopMM;
   Result.Graphic.Assign(AGraphic);
-  Add(Result);
-  FDesignBox.Redraw;
-  FDesignBox.RecordSnapshot;
+  Add(Result, RectF(ALeftMM, ATopMM, 0, 0));
 end;
 
 constructor TDesignBoxItemList.Create(ADesignBox: TDesignBox);
@@ -1433,9 +1556,9 @@ begin
   AJson.AddPair('font', AObj);
 end;
 
-{ TDesignBoxItemShape }
+{ TDesignBoxItemFilledShape }
 
-constructor TDesignBoxItemShape.Create(ADesignBox: TDesignBox);
+constructor TDesignBoxItemFilledShape.Create(ADesignBox: TDesignBox);
 begin
   inherited;
   FBrush := TDesignBrush.Create;
@@ -1444,83 +1567,61 @@ begin
   FPen.OnChange := DoPenChange;
 end;
 
-destructor TDesignBoxItemShape.Destroy;
+destructor TDesignBoxItemFilledShape.Destroy;
 begin
   FBrush.Free;
   FPen.Free;
   inherited;
 end;
 
-procedure TDesignBoxItemShape.DoBrushChange(Sender: TObject);
+procedure TDesignBoxItemFilledShape.DoBrushChange(Sender: TObject);
 begin
   Changed;
 end;
 
-procedure TDesignBoxItemShape.DoPenChange(Sender: TObject);
+procedure TDesignBoxItemFilledShape.DoPenChange(Sender: TObject);
 begin
   Changed;
 end;
 
-function TDesignBoxItemShape.GetBrush: TBrush;
+function TDesignBoxItemFilledShape.GetBrush: TBrush;
 begin
   Result := FBrush;
 end;
 
-function TDesignBoxItemShape.GetPen: TPen;
+function TDesignBoxItemFilledShape.GetPen: TPen;
 begin
   Result := FPen;
 end;
 
-procedure TDesignBoxItemShape.LoadFromJson(AJson: TJsonObject);
-var
-  AShape: string;
+procedure TDesignBoxItemFilledShape.LoadFromJson(AJson: TJsonObject);
 begin
   inherited;
-  AShape := AJson.Values['shape'].Value;
-  if AShape = 'ellipse' then FShape := dbEllipse;
-  if AShape = 'rectangle' then FShape := dbRectangle;
-  if AShape = 'line' then FShape := dbLine;
-
   FBrush.LoadFromJson(AJson);
   FPen.LoadFromJson(AJson);
 end;
 
-procedure TDesignBoxItemShape.PaintToCanvas(ACanvas: TCanvas);
+procedure TDesignBoxItemFilledShape.PaintToCanvas(ACanvas: TCanvas);
 begin
   ACanvas.Pen.Assign(FPen);
   ACanvas.Brush.Assign(FBrush);
-
-  case FShape of
-    dbEllipse: ACanvas.Ellipse(RectPixels);
-    dbRectangle: ACanvas.Rectangle(RectPixels);
-    dbLine:
-      begin
-        ACanvas.MoveTo(RectPixels.TopLeft.X, RectPixels.TopLeft.Y);
-        ACanvas.LineTo(RectPixels.BottomRight.X, RectPixels.BottomRight.Y);
-      end;
-  end;
 end;
 
-procedure TDesignBoxItemShape.SaveToJson(AJson: TJsonObject);
+procedure TDesignBoxItemFilledShape.SaveToJson(AJson: TJsonObject);
 begin
   inherited;
-  case FShape of
-    dbEllipse   : AJson.AddPair('shape', 'ellipse');
-    dbRectangle : AJson.AddPair('shape', 'rectangle');
-    dbLine      : AJson.AddPair('shape', 'line');
-  end;
   FBrush.SaveToJson(AJson);
   FPen.SaveToJson(AJson);
 end;
 
-procedure TDesignBoxItemShape.SetBrush(const Value: TBrush);
+procedure TDesignBoxItemFilledShape.SetBrush(const Value: TBrush);
 begin
   FBrush.Assign(Value);
 end;
 
 { TDesignBoxItemSelectable }
 
-procedure TDesignBoxItemShape.SetPen(const Value: TPen);
+procedure TDesignBoxItemFilledShape.SetPen(const Value: TPen);
 begin
   FPen.Assign(Value);
 end;
@@ -1567,6 +1668,15 @@ begin
       ACanvas.Rectangle(handleRect);
     end;
   end;
+end;
+
+procedure TDesignBoxItemSizable.SetCoords(ALeftMM, ATopMM, ARightMM, ABottomMM: single);
+begin
+  FPositionMM.X := ALeftMM;
+  FPositionMM.Y := ATopMM;
+  FWidthMM := ARightMM-ALeftMM;
+  FHeightMM := ABottomMM-ATopMM;
+  Changed;
 end;
 
 { TDesignBrush }
@@ -1692,14 +1802,94 @@ begin
   end;
 end;
 
+{ TDesignBoxItemEllipse }
+
+procedure TDesignBoxItemEllipse.PaintToCanvas(ACanvas: TCanvas);
+begin
+  inherited;
+  ACanvas.Ellipse(RectPixels);
+end;
+
+{ TDesignBoxItemRectangle }
+
+constructor TDesignBoxItemRectangle.Create(ADesignBox: TDesignBox);
+begin
+  inherited;
+  FRoundnessMm := 0;
+end;
+
+procedure TDesignBoxItemRectangle.PaintToCanvas(ACanvas: TCanvas);
+begin
+  inherited;
+  ACanvas.RoundRect(RectPixels, Round(MmToPixels(FRoundnessMm)), Round(MmToPixels(FRoundnessMm)));
+end;
+
+procedure TDesignBoxItemRectangle.SetRoundnessMm(const Value: single);
+begin
+  if FRoundnessMm <> Value then
+  begin
+    FRoundnessMm := Value;
+    Changed;
+  end;
+end;
+
+{ TDesignBoxGridOptions }
+
+procedure TDesignBoxGridOptions.Assign(Source: TPersistent);
+begin
+  inherited;
+  FVisible := (Source as TDesignBoxGridOptions).FVisible;
+  FColor := (Source as TDesignBoxGridOptions).FColor;
+  FSizeMm := (Source as TDesignBoxGridOptions).FSizeMm;
+  FDesignBox.Invalidate;
+end;
+
+constructor TDesignBoxGridOptions.Create(ADesignBox: TDesignBox);
+begin
+  inherited Create;
+  FDesignBox := ADesignBox;
+  FVisible := False;
+  FColor := $00EEEEEE;
+  FSizeMm := 5;
+end;
+
+procedure TDesignBoxGridOptions.SetColor(const Value: TColor);
+begin
+  if FColor <> Value then
+  begin
+    FColor := Value;
+    FDesignBox.Redraw;
+  end;
+end;
+
+procedure TDesignBoxGridOptions.SetSizeMm(const Value: integer);
+begin
+  if FSizeMm <> Value then
+  begin
+    FSizeMm := Value;
+    FDesignBox.Redraw;
+  end;
+end;
+
+procedure TDesignBoxGridOptions.SetVisible(const Value: Boolean);
+begin
+  if FVisible <> Value then
+  begin
+    FVisible := Value;
+    FDesignBox.Redraw;
+  end;
+end;
+
 initialization
   RegisterClass(TDesignBoxItemText);
-  RegisterClass(TDesignBoxItemShape);
+  RegisterClass(TDesignBoxItemRectangle);
+  RegisterClass(TDesignBoxItemEllipse);
   RegisterClass(TDesignBoxItemGraphic);
 
 finalization
   UnRegisterClass(TDesignBoxItemText);
-  UnRegisterClass(TDesignBoxItemShape);
+  UnRegisterClass(TDesignBoxItemRectangle);
+  UnRegisterClass(TDesignBoxItemEllipse);
   UnRegisterClass(TDesignBoxItemGraphic);
 
 end.

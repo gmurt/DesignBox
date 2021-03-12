@@ -52,6 +52,13 @@ type
     spinHeight: TSpinEdit;
     Label1: TLabel;
     Label2: TLabel;
+    Button3: TButton;
+    actBringForwards: TAction;
+    actSendBackwards: TAction;
+    SendBackwards1: TMenuItem;
+    BringForwards1: TMenuItem;
+    CheckBox4: TCheckBox;
+    SpinEdit1: TSpinEdit;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -79,6 +86,11 @@ type
     procedure CheckBox3Click(Sender: TObject);
     procedure spinWidthChange(Sender: TObject);
     procedure spinHeightChange(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure actBringForwardsExecute(Sender: TObject);
+    procedure actSendBackwardsExecute(Sender: TObject);
+    procedure SpinEdit1Change(Sender: TObject);
+    procedure CheckBox4Click(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -98,6 +110,11 @@ implementation
 
 {$R *.dfm}
 
+procedure TfrmMain.actBringForwardsExecute(Sender: TObject);
+begin
+  DesignBox1.BringForwards;
+end;
+
 procedure TfrmMain.actBringToFrontExecute(Sender: TObject);
 begin
   DesignBox1.BringToFront;
@@ -111,6 +128,11 @@ end;
 procedure TfrmMain.actRedoExecute(Sender: TObject);
 begin
   DesignBox1.Redo;
+end;
+
+procedure TfrmMain.actSendBackwardsExecute(Sender: TObject);
+begin
+  DesignBox1.SendBackwards;
 end;
 
 procedure TfrmMain.actSendToBackExecute(Sender: TObject);
@@ -166,6 +188,15 @@ begin
   DesignBox1.SaveToFile(AppDir+'data.json');
 end;
 
+procedure TfrmMain.Button3Click(Sender: TObject);
+var
+  item: TDesignBoxItemRectangle;
+begin
+  item := DesignBox1.Items.AddRectangle(RectF(20, 20, 40, 40), 5);
+  DesignBox1.items.DeselectAll;
+  item.selected := True;
+end;
+
 procedure TfrmMain.CheckBox1Click(Sender: TObject);
 begin
   case CheckBox1.Checked of
@@ -186,6 +217,11 @@ begin
   DesignBox1.ShowRulers := CheckBox3.Checked;
 end;
 
+procedure TfrmMain.CheckBox4Click(Sender: TObject);
+begin
+  DesignBox1.GridOptions.Visible := CheckBox4.Checked;
+end;
+
 procedure TfrmMain.btnLoadClick(Sender: TObject);
 begin
   DesignBox1.LoadFromFile(AppDir+'data.json');
@@ -198,18 +234,18 @@ end;
 
 procedure TfrmMain.btnAddRectangleClick(Sender: TObject);
 var
-  item: TDesignBoxItemShape;
+  item: TDesignBoxItemRectangle;
 begin
-  item := DesignBox1.Items.AddRectangle(20, 20, 40, 40);
+  item := DesignBox1.Items.AddRectangle(RectF(20, 20, 40, 40));
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
 
 procedure TfrmMain.btnAddEllipseClick(Sender: TObject);
 var
-  item: TDesignBoxItemShape;
+  item: TDesignBoxItemEllipse;
 begin
-  item := DesignBox1.Items.AddEllipse(20, 20, 40, 40);
+  item := DesignBox1.Items.AddEllipse(RectF(20, 20, 40, 40));
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -276,6 +312,11 @@ end;
 procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
 begin
   UpdateActionStates;
+end;
+
+procedure TfrmMain.SpinEdit1Change(Sender: TObject);
+begin
+  DesignBox1.GridOptions.SizeMm := SpinEdit1.Value;
 end;
 
 procedure TfrmMain.spinHeightChange(Sender: TObject);

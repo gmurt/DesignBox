@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'frmMain'
   ClientHeight = 632
-  ClientWidth = 728
+  ClientWidth = 778
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 89
     Width = 8
-    Height = 475
+    Height = 455
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -28,7 +28,7 @@ object frmMain: TfrmMain
   object Bevel2: TBevel
     Left = 0
     Top = 605
-    Width = 728
+    Width = 778
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,10 +37,10 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 720
+    Left = 770
     Top = 89
     Width = 8
-    Height = 475
+    Height = 455
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -50,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 81
-    Width = 728
+    Width = 778
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,24 +60,26 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
-    Width = 712
-    Height = 475
+    Width = 762
+    Height = 455
     Align = alClient
-    OnSelectItem = DesignBox1SelectItem
-    OnMouseDown = DesignBox1MouseDown
-    OnMouseMove = DesignBox1MouseMove
     PopupMenu = PopupMenu1
     RulerBackground = clWindow
     RulerForeground = clWindowText
     PageWidthMM = 100
     PageHeightMM = 100
     OnChange = DesignBox1Change
+    OnMouseDown = DesignBox1MouseDown
+    OnMouseMove = DesignBox1MouseMove
+    OnSelectItem = DesignBox1SelectItem
     ExplicitTop = 87
+    ExplicitWidth = 712
+    ExplicitHeight = 475
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 728
+    Width = 778
     Height = 81
     Align = alTop
     BevelOuter = bvNone
@@ -130,7 +132,7 @@ object frmMain: TfrmMain
       OnClick = btnAddGraphicClick
     end
     object btnSave: TButton
-      Left = 525
+      Left = 621
       Top = 50
       Width = 65
       Height = 25
@@ -139,7 +141,7 @@ object frmMain: TfrmMain
       OnClick = btnSaveClick
     end
     object btnClear: TButton
-      Left = 454
+      Left = 550
       Top = 50
       Width = 65
       Height = 25
@@ -166,7 +168,7 @@ object frmMain: TfrmMain
       OnClick = btnAddEllipseClick
     end
     object btnFont: TButton
-      Left = 596
+      Left = 692
       Top = 19
       Width = 65
       Height = 25
@@ -175,7 +177,7 @@ object frmMain: TfrmMain
       OnClick = btnFontClick
     end
     object btnBorderColor: TButton
-      Left = 525
+      Left = 621
       Top = 19
       Width = 65
       Height = 25
@@ -184,7 +186,7 @@ object frmMain: TfrmMain
       OnClick = btnBorderColorClick
     end
     object btnFillColor: TButton
-      Left = 454
+      Left = 550
       Top = 19
       Width = 65
       Height = 25
@@ -193,7 +195,7 @@ object frmMain: TfrmMain
       OnClick = btnFillColorClick
     end
     object CheckBox1: TCheckBox
-      Left = 390
+      Left = 486
       Top = 23
       Width = 58
       Height = 17
@@ -202,7 +204,7 @@ object frmMain: TfrmMain
       OnClick = CheckBox1Click
     end
     object btnLoad: TButton
-      Left = 596
+      Left = 692
       Top = 50
       Width = 65
       Height = 25
@@ -211,15 +213,15 @@ object frmMain: TfrmMain
       OnClick = btnLoadClick
     end
     object txtTextItem: TEdit
-      Left = 201
+      Left = 400
       Top = 50
-      Width = 247
+      Width = 144
       Height = 23
       TabOrder = 8
       OnChange = txtTextItemChange
     end
     object CheckBox2: TCheckBox
-      Left = 304
+      Left = 400
       Top = 23
       Width = 80
       Height = 17
@@ -227,20 +229,29 @@ object frmMain: TfrmMain
       TabOrder = 12
       OnClick = CheckBox2Click
     end
+    object Button3: TButton
+      Left = 209
+      Top = 19
+      Width = 83
+      Height = 25
+      Caption = 'Round Rect'
+      TabOrder = 13
+      OnClick = Button3Click
+    end
   end
   object StatusBar1: TStatusBar
     Left = 0
     Top = 613
-    Width = 728
+    Width = 778
     Height = 19
     Panels = <>
     SimplePanel = True
   end
   object Panel2: TPanel
     Left = 0
-    Top = 564
-    Width = 728
-    Height = 41
+    Top = 544
+    Width = 778
+    Height = 61
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2
@@ -275,7 +286,7 @@ object frmMain: TfrmMain
       TabOrder = 1
     end
     object CheckBox3: TCheckBox
-      Left = 177
+      Left = 185
       Top = 13
       Width = 97
       Height = 17
@@ -309,6 +320,26 @@ object frmMain: TfrmMain
       Value = 100
       OnChange = spinHeightChange
     end
+    object CheckBox4: TCheckBox
+      Left = 265
+      Top = 13
+      Width = 97
+      Height = 17
+      Caption = 'Grid'
+      TabOrder = 5
+      OnClick = CheckBox4Click
+    end
+    object SpinEdit1: TSpinEdit
+      Left = 313
+      Top = 10
+      Width = 39
+      Height = 24
+      MaxValue = 0
+      MinValue = 0
+      TabOrder = 6
+      Value = 5
+      OnChange = SpinEdit1Change
+    end
   end
   object PopupMenu1: TPopupMenu
     OnPopup = PopupMenu1Popup
@@ -316,6 +347,12 @@ object frmMain: TfrmMain
     Top = 464
     object BringToFront1: TMenuItem
       Action = actBringToFront
+    end
+    object BringForwards1: TMenuItem
+      Action = actBringForwards
+    end
+    object SendBackwards1: TMenuItem
+      Action = actSendBackwards
     end
     object SendToBack1: TMenuItem
       Action = actSendToBack
@@ -349,6 +386,14 @@ object frmMain: TfrmMain
     object actRedo: TAction
       Caption = 'Redo'
       OnExecute = actRedoExecute
+    end
+    object actBringForwards: TAction
+      Caption = 'Bring Forwards'
+      OnExecute = actBringForwardsExecute
+    end
+    object actSendBackwards: TAction
+      Caption = 'Send Backwards'
+      OnExecute = actSendBackwardsExecute
     end
   end
   object FontDialog1: TFontDialog
