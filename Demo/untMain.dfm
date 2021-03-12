@@ -19,7 +19,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 89
     Width = 8
-    Height = 483
+    Height = 503
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -40,7 +40,7 @@ object frmMain: TfrmMain
     Left = 773
     Top = 89
     Width = 8
-    Height = 483
+    Height = 503
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -61,7 +61,7 @@ object frmMain: TfrmMain
     Left = 8
     Top = 89
     Width = 765
-    Height = 483
+    Height = 503
     Align = alClient
     GridOptions.Visible = True
     PopupMenu = PopupMenu1
@@ -72,6 +72,7 @@ object frmMain: TfrmMain
     OnMouseMove = DesignBox1MouseMove
     OnSelectItem = DesignBox1SelectItem
     ExplicitWidth = 817
+    ExplicitHeight = 483
   end
   object Panel1: TPanel
     Left = 0
@@ -670,9 +671,9 @@ object frmMain: TfrmMain
   end
   object Panel2: TPanel
     Left = 0
-    Top = 572
+    Top = 592
     Width = 781
-    Height = 61
+    Height = 41
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 2

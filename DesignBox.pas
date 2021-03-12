@@ -1,7 +1,8 @@
 unit DesignBox;
 
-{ TODO : Grid not being drawn correctly - set to 20mm and it's drawing @ 25mm - https://i.imgur.com/bcM8KiS.png - appears to be because MMtoPixels using Screen DPI whereas others are using fixed 96 dpi }
-{ TODO : Snap to Grid not working as expected }
+{ DONE : Grid not being drawn correctly - set to 20mm and it's drawing @ 25mm - https://i.imgur.com/bcM8KiS.png - appears to be because MMtoPixels using Screen DPI whereas others are using fixed 96 dpi }
+{ DONE : Snap to Grid not working as expected }
+{ TODO : High DPI support -- hard coded "96" needs to be Monitor.PixelsPerInch
 { TODO : Undo goes back "too far" (UndoList[-1] ?) and then won't redo }
 { TODO : Drag to select, followed by a single click off-object (to de-select) erases the grid }
 
@@ -312,6 +313,7 @@ type
     FOnChange: TNotifyEvent;
     FGridOptions: TDesignBoxGridOptions;
     FRulerOptions: TDesignBoxRulerOptions;
+    FMouseObjectOffset: TPoint;
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
@@ -587,6 +589,7 @@ procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: I
 var
   AItem: TDesignBoxBaseItem;
   ADeselectOthers: Boolean;
+  aSelectedItemsPixelRect: TRect;
 begin
   inherited;
   X := X - FPageOffset.X;
@@ -595,6 +598,7 @@ begin
   ADeselectOthers := True;
 
   FMouseDownPos := Point(X, Y);
+
   AItem := FItems.ItemAtPos(x, y);
   if (ssShift in Shift) then ADeselectOthers := False;
   if (AItem <> nil) and (AItem.Selected) then ADeselectOthers := False;
@@ -611,6 +615,11 @@ begin
 
   FDragging := True;
   FMouseXY := Point(X, Y);
+  // virtual rectangle containing all selected objects
+  aSelectedItemsPixelRect := SelectedItemsPixelRect;
+  // delta to the top left of the selection(s) (negative values)
+  FMouseObjectOffset.X := FMouseXY.X - aSelectedItemsPixelRect.TopLeft.X;
+  FMouseObjectOffset.Y := FMouseXY.Y - aSelectedItemsPixelRect.TopLeft.Y;
 
   if (AItem <> nil) and (AItem.Selected) and (Assigned(FOnSelectItem)) then
     FOnSelectItem(Self, AItem);
@@ -620,6 +629,7 @@ procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   AItem: TDesignBoxBaseItem;
   AChangeX, AChangeY: integer;
+  Grid : TPoint;
 begin
   inherited;
   X := X - FPageOffset.X;
@@ -630,21 +640,31 @@ begin
     if (ssCtrl in Shift) or FGridOptions.SnapToGrid then
     begin
 
+      // the nearest grid to the mouse
+      Grid.X := (X div fGridOptions.PixelSize) * fGridOptions.PixelSize;
+      Grid.Y := (Y div fGridOptions.PixelSize) * fGridOptions.PixelSize;
+
+      X := Grid.X + FMouseObjectOffset.X;
+      Y := Grid.Y + FMouseObjectOffset.Y;
+
+      (*
       AChangeX := Abs(X - FMouseDownPos.X);
       AChangeY := Abs(Y - FMouseDownPos.Y);
-
       if AChangeX > AChangeY then
         Y := FMouseDownPos.Y
       else
         X := FMouseDownPos.X;
+      *)
 
     end;
 
+    // this moves the items
     for AItem in FItems do
     begin
       if AItem.Selected and (canMove in AItem.Options) then
-        AItem.OffsetByPixels(X- FMouseXY.X, Y - FMouseXY.Y, False);
+        AItem.OffsetByPixels(X - FMouseXY.X, Y - FMouseXY.Y, False);
     end;
+
     Redraw;
   end;
   FMouseXY := Point(X, Y);
