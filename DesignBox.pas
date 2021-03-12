@@ -450,8 +450,8 @@ begin
     case aAlignment of
       ialLeftSides:   AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Left);
       ialTopSides:    AItem.TopMM  := PixelsToMM(aSelectedItemsPixelRect.Top);
-      ialRightSides:  AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Right) - aItem.LeftMM;
-      ialBottomSides: Aitem.TopMM := PixelsToMM(aSelectedItemsPixelRect.Top) - AItem.TopMM;
+      ialRightSides:  AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Right) - aItem.WidthMM;
+      ialBottomSides: Aitem.TopMM := PixelsToMM(aSelectedItemsPixelRect.Bottom) - AItem.HeightMM;
       ialToGrid: ;
     end;
   end;
@@ -646,7 +646,7 @@ begin
 
   FDragging := True;
   FMouseXY := Point(X, Y);
-  // virtual rectangle containing all selected objects
+  // virtual rectangle containing all selected objects (or just the one)
   aSelectedItemsPixelRect := SelectedItemsPixelRect;
   // delta to the top left of the selection(s) (negative values)
   FMouseObjectOffset.X := FMouseXY.X - aSelectedItemsPixelRect.TopLeft.X;
