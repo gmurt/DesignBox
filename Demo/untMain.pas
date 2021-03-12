@@ -61,6 +61,16 @@ type
     DesignBox1: TDesignBox;
     chkSnapTogrid: TCheckBox;
     Label3: TLabel;
+    Button4: TButton;
+    alignPopup: TPopupMenu;
+    actAlignleft: TAction;
+    actAlignRight: TAction;
+    actAlignTop: TAction;
+    actAlignBottom: TAction;
+    AlignLeft1: TMenuItem;
+    AlignRight1: TMenuItem;
+    AlignTop1: TMenuItem;
+    AlignBottom1: TMenuItem;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -94,6 +104,9 @@ type
     procedure SpinEdit1Change(Sender: TObject);
     procedure chkGridVisibleClick(Sender: TObject);
     procedure chkSnapTogridClick(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure actAlignleftExecute(Sender: TObject);
+    procedure Button4DropDownClick(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -112,6 +125,11 @@ var
 implementation
 
 {$R *.dfm}
+
+procedure TfrmMain.actAlignleftExecute(Sender: TObject);
+begin
+  DesignBox1.AlignItems(TItemAlignment(TAction(Sender).tag));
+end;
 
 procedure TfrmMain.actBringForwardsExecute(Sender: TObject);
 begin
@@ -198,6 +216,16 @@ begin
   item := DesignBox1.Items.AddRectangle(RectF(20, 20, 40, 40), 5);
   DesignBox1.items.DeselectAll;
   item.selected := True;
+end;
+
+procedure TfrmMain.Button4Click(Sender: TObject);
+begin
+  DesignBox1.AlignItems(TItemAlignment.ialLeftSides);
+end;
+
+procedure TfrmMain.Button4DropDownClick(Sender: TObject);
+begin
+  Button4.DropDownMenu := alignPopup;
 end;
 
 procedure TfrmMain.CheckBox1Click(Sender: TObject);

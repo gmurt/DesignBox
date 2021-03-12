@@ -293,6 +293,8 @@ type
     property SnapToGrid: Boolean read FSnapToGrid write SetSnapToGrid default False;
   end;
 
+  TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid);
+
   TDesignBox = class(TGraphicControl)
   private
     FItems: TDesignBoxItemList;
@@ -368,6 +370,7 @@ type
     procedure SaveSnapShot(aForce: boolean);
     function CanUndo : boolean;
     function CanRedo : boolean;
+    procedure AlignItems(const aAlignment: TItemAlignment);
   published
     property Align;
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
@@ -407,6 +410,11 @@ begin
   Result := ({Screen.PixelsPerInch} C_DPI / 25.4) * AValue;
 end;
 
+function PixelsToMM(AValue: single) : single;
+begin
+  result := (AValue / ({Screen.PixelsPerInch}C_DPI/ 25.4));
+end;
+
 { TDesignBoxItemInterface }
 
 function TDesignBoxItemInterface.QueryInterface(const IID: TGUID; out Obj): HResult;
@@ -428,6 +436,29 @@ begin
 end;
 
 { TDesignBox }
+
+procedure TDesignBox.AlignItems(const aAlignment: TItemAlignment);
+var
+  AItem: TDesignBoxBaseItem;
+  aSelectedItemsPixelRect: TRect; // what pixel (horz or vert) are we aligning on?
+begin
+  if FSelectedItems.Count < 2 then EXIT;
+
+  aSelectedItemsPixelRect := SelectedItemsPixelRect;
+  for AItem in FSelectedItems do
+  begin
+    case aAlignment of
+      ialLeftSides:   AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Left);
+      ialTopSides:    AItem.TopMM  := PixelsToMM(aSelectedItemsPixelRect.Top);
+      ialRightSides:  AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Right) - aItem.LeftMM;
+      ialBottomSides: Aitem.TopMM := PixelsToMM(aSelectedItemsPixelRect.Top) - AItem.TopMM;
+      ialToGrid: ;
+    end;
+  end;
+
+  Redraw;
+
+end;
 
 procedure TDesignBox.BringForwards;
 var
@@ -628,7 +659,7 @@ end;
 procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   AItem: TDesignBoxBaseItem;
-  AChangeX, AChangeY: integer;
+//  AChangeX, AChangeY: integer;
   Grid : TPoint;
 begin
   inherited;

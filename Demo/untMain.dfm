@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'frmMain'
   ClientHeight = 660
-  ClientWidth = 781
+  ClientWidth = 829
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -28,7 +28,7 @@ object frmMain: TfrmMain
   object Bevel2: TBevel
     Left = 0
     Top = 633
-    Width = 781
+    Width = 829
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,7 +37,7 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 773
+    Left = 821
     Top = 89
     Width = 8
     Height = 503
@@ -50,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 81
-    Width = 781
+    Width = 829
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,7 +60,7 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
-    Width = 765
+    Width = 813
     Height = 503
     Align = alClient
     GridOptions.Visible = True
@@ -77,7 +77,7 @@ object frmMain: TfrmMain
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 781
+    Width = 829
     Height = 81
     Align = alTop
     BevelOuter = bvNone
@@ -664,7 +664,7 @@ object frmMain: TfrmMain
   object StatusBar1: TStatusBar
     Left = 0
     Top = 641
-    Width = 781
+    Width = 829
     Height = 19
     Panels = <>
     SimplePanel = True
@@ -672,21 +672,22 @@ object frmMain: TfrmMain
   object Panel2: TPanel
     Left = 0
     Top = 592
-    Width = 781
+    Width = 829
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
+    PopupMenu = alignPopup
     TabOrder = 2
     object Label1: TLabel
-      Left = 516
-      Top = 9
+      Left = 564
+      Top = 14
       Width = 61
       Height = 15
       Caption = 'Page Width'
     end
     object Label2: TLabel
-      Left = 668
-      Top = 9
+      Left = 716
+      Top = 14
       Width = 36
       Height = 15
       Caption = 'Height'
@@ -719,8 +720,8 @@ object frmMain: TfrmMain
       OnClick = CheckBox3Click
     end
     object spinWidth: TSpinEdit
-      Left = 586
-      Top = 6
+      Left = 634
+      Top = 11
       Width = 66
       Height = 24
       Increment = 10
@@ -731,8 +732,8 @@ object frmMain: TfrmMain
       OnChange = spinWidthChange
     end
     object spinHeight: TSpinEdit
-      Left = 710
-      Top = 6
+      Left = 758
+      Top = 11
       Width = 63
       Height = 24
       Increment = 10
@@ -771,6 +772,17 @@ object frmMain: TfrmMain
       TabOrder = 5
       OnClick = chkSnapTogridClick
     end
+    object Button4: TButton
+      Left = 453
+      Top = 10
+      Width = 75
+      Height = 25
+      Caption = 'Align'
+      Style = bsSplitButton
+      TabOrder = 8
+      OnClick = Button4Click
+      OnDropDownClick = Button4DropDownClick
+    end
   end
   object PopupMenu1: TPopupMenu
     OnPopup = PopupMenu1Popup
@@ -798,6 +810,23 @@ object frmMain: TfrmMain
   object ActionList1: TActionList
     Left = 504
     Top = 464
+    object actAlignleft: TAction
+      Category = 'Alignment'
+      Caption = 'Align Left'
+      OnExecute = actAlignleftExecute
+    end
+    object actAlignTop: TAction
+      Tag = 1
+      Category = 'Alignment'
+      Caption = 'Align Top'
+      OnExecute = actAlignleftExecute
+    end
+    object actAlignRight: TAction
+      Tag = 2
+      Category = 'Alignment'
+      Caption = 'Align Right'
+      OnExecute = actAlignleftExecute
+    end
     object actBringToFront: TAction
       Caption = 'Bring To Front'
       OnExecute = actBringToFrontExecute
@@ -826,6 +855,12 @@ object frmMain: TfrmMain
       Caption = 'Send Backwards'
       OnExecute = actSendBackwardsExecute
     end
+    object actAlignBottom: TAction
+      Tag = 3
+      Category = 'Alignment'
+      Caption = 'Align Bottom'
+      OnExecute = actAlignleftExecute
+    end
   end
   object FontDialog1: TFontDialog
     Font.Charset = DEFAULT_CHARSET
@@ -845,5 +880,21 @@ object frmMain: TfrmMain
     Options = [cdAnyColor]
     Left = 664
     Top = 352
+  end
+  object alignPopup: TPopupMenu
+    Left = 680
+    Top = 464
+    object AlignLeft1: TMenuItem
+      Action = actAlignleft
+    end
+    object AlignRight1: TMenuItem
+      Action = actAlignRight
+    end
+    object AlignTop1: TMenuItem
+      Action = actAlignTop
+    end
+    object AlignBottom1: TMenuItem
+      Action = actAlignBottom
+    end
   end
 end
