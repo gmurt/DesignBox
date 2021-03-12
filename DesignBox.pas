@@ -1017,8 +1017,11 @@ begin
   // find the maximum extent of all selected objects as a Rect in MM.
   result.left := fSelectedItems[0].RectPixels.Left;
   result.Top := fSelectedItems[0].RectPixels.Top;
-  result.Right:= FSelectedItems[0].RectPixels.Width + FSelectedItems[0].RectPixels.Left;
-  result.Bottom := FSelectedItems[0].RectPixels.Height + FSelectedItems[0].RectPixels.Top;
+  result.Right:= FSelectedItems[0].RectPixels.Left + FSelectedItems[0].RectPixels.Width;
+  result.Bottom := FSelectedItems[0].RectPixels.Top + FSelectedItems[0].RectPixels.Height;
+
+  if fSelectedItems.Count < 2 then exit;
+
   for II := 1 to fSelectedItems.Count-1 do
   begin
     if fSelectedItems[II].RectPixels.Left < result.Left then
