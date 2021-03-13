@@ -1262,6 +1262,7 @@ begin
     ACanvas.Brush.Style := bsClear;
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
+    ACanvas.Pen.Width := 1;
     //OffsetRect(ARect, ASnapOffset.X, ASnapOffset.Y);
     ACanvas.Rectangle(ARect);
   end;
@@ -1707,7 +1708,7 @@ var
 const
   CH_RADIUS = 4; // 16 pixel square grab handlePoints
 begin
-  //inherited DrawSelectedRect(ACanvas, ASnapOffset);
+  inherited DrawSelectedRect(ACanvas);
 
   if FSelected then
   begin
@@ -1716,7 +1717,7 @@ begin
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Brush.Style := bsSolid;
     ACanvas.Brush.Color := ACanvas.Pen.Color;
-
+    ACanvas.Pen.Width := 1;
     handlePoints[dhTopLeft]     := aRect.TopLeft;
     handlePoints[dhTopRight]    := Point(aRect.Right, aRect.Top);
     handlePoints[dhBottomRight] := aRect.BottomRight;
