@@ -90,23 +90,23 @@ type
   private
     FDesignBox: TDesignBox;
     FPositionMM: TPointF;
-    FWidthMM: single;
-    FHeightMM: single;
+    FWidthMM: Extended;
+    FHeightMM: Extended;
     FSelected: Boolean;
-    FSnapRect: TRect;
+    FDrawOffset: TPoint;
     fOptions : TItemOptions;
-    function GetLeftMM: single;
-    function GetTopMM: single;
+    function GetLeftMM: Extended;
+    function GetTopMM: Extended;
     procedure Changed;
-    procedure SetLeftMM(const Value: single);
-    procedure SetTopMM(const Value: single);
+    procedure SetLeftMM(const Value: Extended);
+    procedure SetTopMM(const Value: Extended);
     procedure SetSelectedItem(const Value: Boolean);
     procedure SetOptions(const Value: TItemOptions);
   protected
-    function RectPixels: TRect; virtual;
+    function RectPixels(ASnapped: Boolean): TRect; virtual;
     procedure OffsetByPixels(X, Y: integer; const ARedraw: Boolean = True);
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); virtual;
-    procedure DrawSelectedRect(ACanvas: TCanvas; ASnapOffset: TPoint); virtual;
+    procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
+    procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
@@ -116,10 +116,10 @@ type
     procedure SaveToJson(AJson: TJsonObject); virtual;
     procedure LoadFromJson(AJson: TJsonObject); virtual;
     property Selected: Boolean read FSelected write SetSelectedItem;
-    property LeftMM: single read GetLeftMM write SetLeftMM;
-    property TopMM: single read GetTopMM write SetTopMM;
-    property WidthMM: single read fWidthMM write fWidthMM;
-    property HeightMM: single read fHeightMM write fHeightMM;
+    property LeftMM: Extended read GetLeftMM write SetLeftMM;
+    property TopMM: Extended read GetTopMM write SetTopMM;
+    property WidthMM: Extended read fWidthMM write fWidthMM;
+    property HeightMM: Extended read fHeightMM write fHeightMM;
     property Options: TItemOptions read fOptions write SetOptions;
   end;
 
@@ -135,7 +135,8 @@ type
     //fIsDraggingHandle: boolean;      // is user dragging via a select handle?
     //fSelectedHandle: TDragHandlePos; // if so which one ?
   protected
-    procedure DrawSelectedRect(ACanvas: TCanvas; ASnapOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
+    procedure DrawSelectedRect(ACanvas: TCanvas); override;
 
   public
     constructor Create(ADesignBox: TDesignBox); override;
@@ -150,7 +151,7 @@ type
     procedure DoPenChange(Sender: TObject);
     procedure SetPen(const Value: TPen);
   protected
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
@@ -167,7 +168,7 @@ type
     function GetBrush: TBrush;
     procedure SetBrush(const Value: TBrush);
   protected
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
@@ -185,7 +186,7 @@ type
     procedure SetText(const AText: string);
     procedure SetFont(const Value: TFont);
   protected
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
@@ -199,7 +200,7 @@ type
 
   TDesignBoxItemEllipse = class(TDesignBoxItemFilledShape)
   protected
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
   end;
 
   TDesignBoxItemRectangle = class(TDesignBoxItemFilledShape)
@@ -207,7 +208,7 @@ type
     FRoundnessMm: single;
     procedure SetRoundnessMm(const Value: single);
   protected
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
     property RoundnessMm: single read FRoundnessMm write SetRoundnessMm;
@@ -218,7 +219,7 @@ type
     FGraphic: TPicture;
     procedure SetGraphic(const Value: TPicture);
   protected
-    procedure PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint); override;
+    procedure PaintToCanvas(ACanvas: TCanvas); override;
   public
     constructor Create(ADesignBox: TDesignBox); override;
     destructor Destroy; override;
@@ -407,14 +408,14 @@ begin
   RegisterComponents('Samples', [TDesignBox]);
 end;
 
-function MmToPixels(AValue: single): single;
+function MmToPixels(AValue: Extended): Extended;
 begin
   Result := ({Screen.PixelsPerInch} C_DPI / 25.4) * AValue;
 end;
 
-function PixelsToMM(AValue: single) : single;
+function PixelsToMM(AValue: Extended) : Extended;
 begin
-  result := (AValue / ({Screen.PixelsPerInch}C_DPI/ 25.4));
+  Result := (AValue / ({Screen.PixelsPerInch}C_DPI/ 25.4));
 end;
 
 { TDesignBoxItemInterface }
@@ -926,38 +927,34 @@ begin
   if FGridOptions.Visible then
     DrawGrid(FBuffer.Canvas);
 
+  ASnapOffset := Point(0,0);
   if FGridOptions.SnapToGrid then
   begin
     GetSelectedItems;
     AGridPixelSize := MmToPixels(FGridOptions.FSizeMm);
 
     ASnapRect := SelectedItemsPixelRect;
-    //FBuffer.Canvas.Rectangle(ASnapRect);
-
     ASnapOffset.x := Round(Round(ASnapRect.Left / AGridPixelSize) * AGridPixelSize) - ASnapRect.Left;
     ASnapOffset.Y := Round(Round(ASnapRect.Top / AGridPixelSize) * AGridPixelSize) - ASnapRect.Top;
     ASnapRect.Offset(ASnapOffset);
 
     ASnapOffset.X := ASnapRect.Left - SelectedItemsPixelRect.Left;
     ASnapOffset.Y := ASnapRect.Top - SelectedItemsPixelRect.Top;
-
-    //FBuffer.Canvas.Pen.Color := clRed;
-    //FBuffer.Canvas.Rectangle(ASnapRect);
-  end
-  else
-    ASnapOffset := Point(0,0);
-
+  end;
 
   if FItems.Count > 0 then
   begin
     for AItem in FItems do
     begin
-      case AItem.Selected of
-        True: AItem.PaintToCanvas(FBuffer.Canvas, ASnapOffset);
-        False: AItem.PaintToCanvas(FBuffer.Canvas, Point(0, 0));
-      end;
+      AItem.FDrawOffset := Point(0,0);
+      if (AItem.Selected) and (FDragging) then
+
+        AItem.FDrawOffset := ASnapOffset;
+
+      AItem.PaintToCanvas(FBuffer.Canvas);
+
       if AItem.Selected then
-        AItem.DrawSelectedRect(FBuffer.Canvas, ASnapOffset);
+        AItem.DrawSelectedRect(FBuffer.Canvas);
     end;
   end;
 
@@ -1028,6 +1025,7 @@ end;
 function TDesignBox.SelectedItemsPixelRect: TRect;
 var
   II: Integer;
+  r: TRect;
 begin
   if FSelectedItems.Count = 0 then
   begin
@@ -1035,24 +1033,22 @@ begin
     exit;
   end;
 
+  r := fSelectedItems[0].RectPixels(False);
   // find the maximum extent of all selected objects as a Rect in MM.
-  result.left := fSelectedItems[0].RectPixels.Left;
-  result.Top := fSelectedItems[0].RectPixels.Top;
-  result.Right:= FSelectedItems[0].RectPixels.Left + FSelectedItems[0].RectPixels.Width;
-  result.Bottom := FSelectedItems[0].RectPixels.Top + FSelectedItems[0].RectPixels.Height;
+  result.left := r.Left;
+  result.Top := r.Top;
+  result.Right:= r.Left + r.Width;
+  result.Bottom := r.Top + r.Height;
 
   if fSelectedItems.Count < 2 then exit;
 
   for II := 1 to fSelectedItems.Count-1 do
   begin
-    if fSelectedItems[II].RectPixels.Left < result.Left then
-      result.Left := fSelectedItems[II].RectPixels.Left;
-    if fSelectedItems[II].RectPixels.Top < result.Top then
-      result.Top := fSelectedItems[II].RectPixels.Top;
-    if fSelectedItems[II].RectPixels.Width + fSelectedItems[II].RectPixels.Left > result.Right then
-      result.Right := fSelectedItems[II].RectPixels.Width + fSelectedItems[II].RectPixels.Left;
-    if fSelectedItems[II].RectPixels.Height + fSelectedItems[II].RectPixels.Top > result.Bottom then
-      result.Bottom := fSelectedItems[II].RectPixels.Height + fSelectedItems[II].RectPixels.Top;
+    r := fSelectedItems[II].RectPixels(False);
+    if r.Left < result.Left then result.Left := r.Left;
+    if r.Top < result.Top then result.Top := r.Top;
+    if r.Width + r.Left > result.Right then result.Right := r.Width + r.Left;
+    if r.Height + r.Top > result.Bottom then result.Bottom := r.Height + r.Top;
   end;
 
 end;
@@ -1188,16 +1184,19 @@ begin
   Result := FFont;
 end;
 
-procedure TDesignBoxItemText.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
+procedure TDesignBoxItemText.PaintToCanvas(ACanvas: TCanvas);
+var
+  r: TRect;
 begin
   inherited;
-  ACanvas.Rectangle(RectPixels);
+  r := RectPixels(True);
+  ACanvas.Rectangle(r);
   ACanvas.Font.Assign(FFont);
   // calculate width/height...
   FWidthMM := (ACanvas.TextWidth(FText) / C_DPI) * 25.4;
   FHeightMM := (ACanvas.TextHeight(FText) / C_DPI) * 25.4;
   ACanvas.Brush.Style := bsClear;
-  ACanvas.TextOut(RectPixels.Left, RectPixels.Top, FText);
+  ACanvas.TextOut(r.Left, r.Top, FText);
 end;
 
 procedure TDesignBoxItemText.LoadFromJson(AJson: TJsonObject);
@@ -1252,18 +1251,18 @@ begin
   inherited;
 end;
 
-procedure TDesignBoxBaseItem.DrawSelectedRect(ACanvas: TCanvas; ASnapOffset: TPoint);
+procedure TDesignBoxBaseItem.DrawSelectedRect(ACanvas: TCanvas);
 var
   ARect: TRect;
 begin
   if FSelected then
   begin
-    ARect := RectPixels;
+    ARect := RectPixels(True);
     InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
     ACanvas.Brush.Style := bsClear;
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
-    OffsetRect(ARect, ASnapOffset.X, ASnapOffset.Y);
+    //OffsetRect(ARect, ASnapOffset.X, ASnapOffset.Y);
     ACanvas.Rectangle(ARect);
   end;
 end;
@@ -1271,16 +1270,16 @@ end;
 procedure TDesignBoxBaseItem.FixToSnapRect;
 begin
 
-  FPositionMM.X := PixelsToMM(FSnapRect.Left);
-  FPositionMM.Y := PixelsToMM(FSnapRect.Top);
+  FPositionMM.X := FPositionMM.X + PixelsToMM(FDrawOffset.X);
+  FPositionMM.Y := FPositionMM.Y + PixelsToMM(FDrawOffset.Y);
 end;
 
-function TDesignBoxBaseItem.GetLeftMM: single;
+function TDesignBoxBaseItem.GetLeftMM: Extended;
 begin
   Result := FPositionMM.X;
 end;
 
-function TDesignBoxBaseItem.GetTopMM: single;
+function TDesignBoxBaseItem.GetTopMM: Extended;
 begin
   Result := FPositionMM.Y;
 end;
@@ -1292,24 +1291,26 @@ begin
   if ARedraw then
     Changed;
 end;
-
+  {
 procedure TDesignBoxBaseItem.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
 begin
   FSnapRect := RectPixels;
   OffsetRect(FSnapRect, ADrawOffset.X, ADrawOffset.Y);
-end;
+end;   }
 
 function TDesignBoxBaseItem.PointInRgn(x, y: integer): Boolean;
 begin
-  Result := PtInRect(RectPixels, Point(x,y));
+  Result := PtInRect(RectPixels(False), Point(x,y));
 end;
 
-function TDesignBoxBaseItem.RectPixels: TRect;
+function TDesignBoxBaseItem.RectPixels(ASnapped: Boolean): TRect;
 begin
   Result.Left := Round((C_DPI / 25.4) *FPositionMM.X);
   Result.Top := Round((C_DPI / 25.4) *FPositionMM.Y);
-  Result.Right := Round(((FPositionMM.X+FWidthMM) / 25.4) * C_DPI);
-  Result.Bottom := Round(((FPositionMM.Y + FHeightMM) / 25.4) * C_DPI);
+  Result.Right := Result.Left + Round(MmToPixels(FWidthMM));// Round(((FPositionMM.X+FWidthMM) / 25.4) * C_DPI);
+  Result.Bottom := Result.Top + Round(MmToPixels(FHEightMM));
+  if ASnapped then
+    OffsetRect(Result, FDrawOffset.X, FDrawOffset.Y);
 end;
 
 function TDesignBoxBaseItem.RectsIntersect(ARect: TRect): Boolean;
@@ -1320,7 +1321,7 @@ begin
   x2 := Max(ARect.Left, ARect.Right);
   y1 := Min(ARect.Top, ARect.Bottom);
   y2 := Max(ARect.Top, ARect.Bottom);
-  Result := IntersectRect(Rect(x1, y1, x2, y2), RectPixels);
+  Result := IntersectRect(Rect(x1, y1, x2, y2), RectPixels(False));
 end;
 
 procedure TDesignBoxBaseItem.LoadFromJson(AJson: TJsonObject);
@@ -1340,7 +1341,7 @@ begin
   AJson.AddPair('height',FHeightMM.ToString);
 end;
 
-procedure TDesignBoxBaseItem.SetLeftMM(const Value: single);
+procedure TDesignBoxBaseItem.SetLeftMM(const Value: Extended);
 begin
   FPositionMM.X := Value;
 end;
@@ -1359,7 +1360,7 @@ begin
   end;
 end;
 
-procedure TDesignBoxBaseItem.SetTopMM(const Value: single);
+procedure TDesignBoxBaseItem.SetTopMM(const Value: Extended);
 begin
   FPositionMM.Y := Value;
 end;
@@ -1567,16 +1568,16 @@ begin
   end;
 end;
 
-procedure TDesignBoxItemGraphic.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
+procedure TDesignBoxItemGraphic.PaintToCanvas(ACanvas: TCanvas);
 var
   ARect: TRect;
 begin
   inherited;
-  ARect := RectPixels;
+  ARect := RectPixels(True);
   // calculate width/height...
   FWidthMM := (FGraphic.Width / C_DPI) * 25.4;
   FHeightMM := (FGraphic.Height / C_DPI) * 25.4;
-  OffsetRect(ARect, ADrawOffset.X, ADrawOffset.Y);
+  //OffsetRect(ARect, ADrawOffset.X, ADrawOffset.Y);
   ACanvas.Draw(ARect.Left, ARect.Top, FGraphic.Graphic);
 end;
 
@@ -1666,7 +1667,7 @@ begin
   FBrush.LoadFromJson(AJson);
 end;
 
-procedure TDesignBoxItemFilledShape.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
+procedure TDesignBoxItemFilledShape.PaintToCanvas(ACanvas: TCanvas);
 begin
   inherited;
   ACanvas.Brush.Assign(FBrush);
@@ -1698,7 +1699,7 @@ begin
   inherited;
 end;
 
-procedure TDesignBoxItemSizable.DrawSelectedRect(ACanvas: TCanvas; ASnapOffset: TPoint);
+procedure TDesignBoxItemSizable.DrawSelectedRect(ACanvas: TCanvas);
 var
   ii: TDragHandlePos;
   aRect, handleRect : TRect;
@@ -1706,11 +1707,11 @@ var
 const
   CH_RADIUS = 4; // 16 pixel square grab handlePoints
 begin
-  inherited DrawSelectedRect(ACanvas, ASnapOffset);
+  //inherited DrawSelectedRect(ACanvas, ASnapOffset);
 
   if FSelected then
   begin
-    aRect := RectPixels;
+    aRect := RectPixels(True);
     InflateRect(aRect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE); // duplicate the inherited version
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Brush.Style := bsSolid;
@@ -1724,11 +1725,17 @@ begin
     for ii := Low(TDragHandlePos) to High(TDragHandlePos) do
     begin
       handleRect := Rect(handlePoints[ii].X - CH_RADIUS, handlePoints[ii].Y - CH_RADIUS, handlePoints[ii].X + CH_RADIUS, handlePoints[ii].Y + CH_RADIUS);
-      OffsetRect(handleRect, ASnapOffset.X, ASnapOffset.Y);
+      //OffsetRect(handleRect, ASnapOffset.X, ASnapOffset.Y);
       fSelectHandles[ii] := handleRect; // save for comparison in PointInRgn later
       ACanvas.Rectangle(handleRect);
     end;
   end;
+end;
+
+procedure TDesignBoxItemSizable.PaintToCanvas(ACanvas: TCanvas);
+begin
+  // does nothing. Just prevents errors if inherited called on descendants
+
 end;
 
 procedure TDesignBoxItemSizable.SetCoords(ALeftMM, ATopMM, ARightMM, ABottomMM: single);
@@ -1865,13 +1872,12 @@ end;
 
 { TDesignBoxItemEllipse }
 
-procedure TDesignBoxItemEllipse.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
+procedure TDesignBoxItemEllipse.PaintToCanvas(ACanvas: TCanvas);
 var
   ARect: TRect;
 begin
   inherited;
-  ARect := RectPixels;
-  OffsetRect(ARect, ADrawOffset.X, ADrawOffset.Y);
+  ARect := RectPixels(True);
   ACanvas.Ellipse(ARect);
 end;
 
@@ -1883,18 +1889,18 @@ begin
   FRoundnessMm := 0;
 end;
 
-procedure TDesignBoxItemRectangle.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
+procedure TDesignBoxItemRectangle.PaintToCanvas(ACanvas: TCanvas);
 var
   r: TRect;
 begin
   inherited;
-  r := RectPixels;
-  //ACanvas.RoundRect(r, Round(MmToPixels(FRoundnessMm)), Round(MmToPixels(FRoundnessMm)));
-  //if ADrawOffset <> Point(0,0) then
-  begin
-    OffsetRect(r, ADrawOffset.X, ADrawOffset.Y);
-    ACanvas.RoundRect(r, Round(MmToPixels(FRoundnessMm)), Round(MmToPixels(FRoundnessMm)));
-  end;
+  r := RectPixels(True);
+  ACanvas.RoundRect(Rect(r.Left,
+                         r.Top,
+                         r.Right,
+                         r.Bottom),
+                    Round(MmToPixels(FRoundnessMm)),
+                    Round(MmToPixels(FRoundnessMm)));
 end;
 
 procedure TDesignBoxItemRectangle.SetRoundnessMm(const Value: single);
@@ -2016,7 +2022,7 @@ begin
   FPen.LoadFromJson(AJson);
 end;
 
-procedure TDesignBoxItemOutlineShape.PaintToCanvas(ACanvas: TCanvas; ADrawOffset: TPoint);
+procedure TDesignBoxItemOutlineShape.PaintToCanvas(ACanvas: TCanvas);
 begin
   inherited;
   ACanvas.Pen.Assign(FPen);

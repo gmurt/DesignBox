@@ -63,7 +63,6 @@ object frmMain: TfrmMain
     Width = 813
     Height = 503
     Align = alClient
-    GridOptions.SizeMm = 15
     GridOptions.Visible = True
     PopupMenu = PopupMenu1
     PageWidthMM = 190
