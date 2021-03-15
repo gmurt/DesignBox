@@ -13,6 +13,7 @@ uses
   vcl.Graphics, System.Generics.Defaults, System.Json;
 
 type
+  TDesignBoxMode = (dbmSelect, dbmDrawRect, dbmDrawEllipse);
 
   TItemOption = (canSize, canMove, canDelete, canSelect);
   TItemOptions = set of TItemOption;
@@ -330,12 +331,14 @@ type
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
     function TextExtent(const AText: string): TSizeF;
-    function TextWidth(const AText: string): integer;
+    function TextWidth(const AText: string): single;
+    function TextHeight(const AText: string): single;
     function MeasureText(const AText: string): TSizeF;
 
     function TextOut(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function Draw(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
-    function Rectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle;
+    function Rectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single; const ARoundnessMm: single = 0): TDesignBoxItemRectangle; overload;
+    function Rectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle; overload;
     function Ellipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;
 
     property Brush: TBrush read FBrush write SetBrush;
@@ -344,8 +347,10 @@ type
 
   end;
 
+
   TDesignBox = class(TGraphicControl)
   private
+    FMode: TDesignBoxMode;
     FCanvas: TDesignBoxCanvas;
     FItems: TDesignBoxItemList;
     FSelectedItems: TDesignBoxItemList;
@@ -404,8 +409,6 @@ type
     //property Brush: TBrush read FBrush write SetBrush;
     //property Font: TFont read FFont write SetFont;
     //property Pen: TPen read FPen write SetPen;
-    property Items: TDesignBoxItemList read FItems;
-    property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
     procedure Redraw;
     procedure Undo;
     procedure Redo;
@@ -413,6 +416,10 @@ type
     function CanUndo : boolean;
     function CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
+
+    property Items: TDesignBoxItemList read FItems;
+    property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
+    property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
 
     // deprecated...
     function MeasureText(const aText: string): TSizeF; deprecated;
@@ -564,9 +571,6 @@ begin
   FUpdating := True;
   FCanvas := TDesignBoxCanvas.Create(Self);
   FBuffer := TBitmap.Create;
-  //FBrush := TBrush.Create;
-  //FFont := TFont.Create;
-  //FPen := TPen.Create;
   FItems := TDesignBoxItemList.Create(Self);
   FSelectedItems := TDesignBoxItemList.Create(Self);
   FUndoList := TDesignUndoList.Create(Self);
@@ -580,9 +584,8 @@ begin
   FPageColor := clWhite;
 
   ResizeCanvas;
-  //FBrush.OnChange := OnBrushChanged;
-  //FFont.OnChange := OnFontChanged;;
-  //FPen.OnChange := OnPenChanged;
+
+  FMode := dbmSelect;
   FUpdating := False;
   Redraw;
 end;
@@ -593,9 +596,6 @@ begin
   FItems.Free;
   FBuffer.Free;
   FSelectedItems.Free;
-  //FFont.Free;
-  //FBrush.Free;
-  //FPen.Free;
   FUndoList.Free;
   FGridOptions.Free;
   FRulerOptions.Free;
@@ -690,7 +690,6 @@ var
   AItem: TDesignBoxBaseItem;
   ADeselectOthers: Boolean;
 begin
-  inherited;
   FRulerOptions.fRulerWidthPx := fPageOffset.X;
   FRulerOptions.fRulerHeightPx := fPageOffset.Y;
 
@@ -722,6 +721,9 @@ begin
   if (AItem <> nil) and (AItem.Selected) and (Assigned(FOnSelectItem)) then
     FOnSelectItem(Self, AItem);
 
+  if SelectedItems.Count > 0 then
+    FMode := dbmSelect;
+  inherited;
 end;
 
 procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -774,12 +776,13 @@ procedure TDesignBox.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Int
 var
   ADragArea: TRect;
   AItem: TDesignBoxBaseItem;
+  ARect: TRectF;
 begin
   inherited;
   X := X - FPageOffset.X;
   Y := Y - FPageOffset.Y;
 
-  if (FDragging) and (FItems.SelectedCount = 0) then
+  if (FDragging) and (FItems.SelectedCount = 0) and (Mode = dbmSelect) then
   begin
     ADragArea := Rect(Min(FMouseDownPos.X, X), Min(FMouseDownPos.Y, Y), Max(FMouseDownPos.X, X), Max(FMouseDownPos.Y, Y));
     if (ADragArea.Width > 4) and (ADragArea.Height > 4) then
@@ -797,6 +800,17 @@ begin
 
   end;
   FDragging := False;
+
+  ARect := RectF(PixelsToMM(FMouseDownPos.X),
+                PixelsToMM(FMouseDownPos.Y),
+                PixelsToMM(FMouseXY.X),
+                PixelsToMM(FMouseXY.Y));
+  ARect.NormalizeRect;
+  case FMode of
+     dbmDrawRect    : FCanvas.Rectangle(ARect, 0);
+     dbmDrawEllipse : FCanvas.Ellipse(ARect);
+  end;
+
   Redraw;
   RecordSnapshot;
 end;
@@ -1467,8 +1481,8 @@ begin
   Result := AItem;
   Result.LeftMM := ABoundsMm.Left;
   Result.TopMM := ABoundsMm.Top;
-  if ABoundsMm.Width > 0 then Result.FWidth := MmToPixels(ABoundsMm.Height);
-  if ABoundsMm.Height > 0 then Result.FHeight := MmToPixels(ABoundsMm.Width);
+  if ABoundsMm.Width > 0 then Result.FWidth := MmToPixels(ABoundsMm.Width);
+  if ABoundsMm.Height > 0 then Result.FHeight := MmToPixels(ABoundsMm.Height);
   Add(result);
   FDesignBox.ReDraw;
   FDesignBox.RecordSnapshot;
@@ -2217,6 +2231,12 @@ begin
   Result.cy := PixelsToMM(Result.cy);
 end;
 
+function TDesignBoxCanvas.Rectangle(ALeftMM, ATopMM, ARightMM,
+  ABottomMM: single; const ARoundnessMm: single): TDesignBoxItemRectangle;
+begin
+  Result := Rectangle(RectF(ALeftMM, ATopMM, ARightMM, ABottomMM), ARoundnessMm);
+end;
+
 function TDesignBoxCanvas.Rectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle;
 begin
   Result := FDesignBox.Items.Add(TDesignBoxItemRectangle, ABoundsMm) as TDesignBoxItemRectangle;
@@ -2239,11 +2259,18 @@ end;
 function TDesignBoxCanvas.TextExtent(const AText: string): TSizeF;
 begin
   Result := FTempCanvas.Canvas.TextExtent(AText);
+  Result.cx := PixelsToMM(Result.cx);
+  Result.cy := PixelsToMM(Result.cy);
 end;
 
-function TDesignBoxCanvas.TextWidth(const AText: string): integer;
+function TDesignBoxCanvas.TextWidth(const AText: string): single;
 begin
-  Result := FTempCanvas.Canvas.TextWidth(AText);
+  Result := PixelsToMM(FTempCanvas.Canvas.TextWidth(AText));
+end;
+
+function TDesignBoxCanvas.TextHeight(const AText: string): single;
+begin
+  Result := PixelsToMM(FTempCanvas.Canvas.TextHeight(AText));
 end;
 
 destructor TDesignBoxCanvas.Destroy;

@@ -75,6 +75,7 @@ type
     Aligntogrid1: TMenuItem;
     N2: TMenuItem;
     Button5: TButton;
+    RadioGroup1: TRadioGroup;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -113,10 +114,12 @@ type
     procedure Button4DropDownClick(Sender: TObject);
     procedure actAlignToGridExecute(Sender: TObject);
     procedure actSelectAllExecute(Sender: TObject);
+    procedure RadioGroup1Click(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
     procedure UpdateActionStates;
+    procedure UpdateModeRadioGroup;
     { Private declarations }
   protected
     procedure DoShow; override;
@@ -310,6 +313,7 @@ end;
 procedure TfrmMain.DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   UpdateItemCoords;
+  UpdateModeRadioGroup;
 end;
 
 procedure TfrmMain.DesignBox1MouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
@@ -391,6 +395,15 @@ begin
   UpdateActionStates;
 end;
 
+procedure TfrmMain.RadioGroup1Click(Sender: TObject);
+begin
+  case RadioGroup1.ItemIndex of
+    0: DesignBox1.Mode := dbmSelect;
+    1: DesignBox1.Mode := dbmDrawRect;
+    2: DesignBox1.Mode := dbmDrawEllipse;
+  end;
+end;
+
 procedure TfrmMain.SpinEdit1Change(Sender: TObject);
 begin
   DesignBox1.GridOptions.SizeMm := SpinEdit1.Value;
@@ -434,6 +447,19 @@ begin
       StatusBar1.SimpleText := Format('X = %fmm | Y = %fmm' ,[DesignBox1.SelectedItems[0].LeftMM, DesignBox1.SelectedItems[0].TopMM])
   else
     StatusBar1.SimpleText := 'No items selected';
+end;
+
+procedure TfrmMain.UpdateModeRadioGroup;
+var
+  AIndex: integer;
+begin
+  AIndex := 0;
+  case DesignBox1.Mode of
+    dbmSelect: AIndex := 0;
+    dbmDrawRect: AIndex := 1;
+    dbmDrawEllipse: AIndex := 2;
+  end;
+  RadioGroup1.ItemIndex := AIndex;
 end;
 
 end.

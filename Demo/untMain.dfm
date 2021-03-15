@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'frmMain'
   ClientHeight = 660
-  ClientWidth = 850
+  ClientWidth = 796
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -17,9 +17,9 @@ object frmMain: TfrmMain
   TextHeight = 15
   object Bevel1: TBevel
     Left = 0
-    Top = 89
+    Top = 129
     Width = 8
-    Height = 503
+    Height = 463
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -28,7 +28,7 @@ object frmMain: TfrmMain
   object Bevel2: TBevel
     Left = 0
     Top = 633
-    Width = 850
+    Width = 796
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,10 +37,10 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 842
-    Top = 89
+    Left = 788
+    Top = 129
     Width = 8
-    Height = 503
+    Height = 463
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -49,19 +49,20 @@ object frmMain: TfrmMain
   end
   object Bevel4: TBevel
     Left = 0
-    Top = 81
-    Width = 850
+    Top = 121
+    Width = 796
     Height = 8
     Align = alTop
     Shape = bsSpacer
     ExplicitLeft = -8
+    ExplicitTop = 81
     ExplicitWidth = 669
   end
   object DesignBox1: TDesignBox
     Left = 8
-    Top = 89
-    Width = 834
-    Height = 503
+    Top = 129
+    Width = 780
+    Height = 463
     Align = alClient
     BackgroundColor = clBtnFace
     GridOptions.Visible = True
@@ -74,20 +75,23 @@ object frmMain: TfrmMain
     OnSelectItem = DesignBox1SelectItem
     ExplicitTop = 87
     ExplicitWidth = 813
+    ExplicitHeight = 503
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 850
-    Height = 81
+    Width = 796
+    Height = 121
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitTop = 2
+    ExplicitWidth = 856
     object Image1: TImage
-      Left = 290
-      Top = 3
-      Width = 81
-      Height = 72
+      Left = 834
+      Top = 9
+      Width = 35
+      Height = 35
       Picture.Data = {
         0954506E67496D61676589504E470D0A1A0A0000000D49484452000000800000
         00800806000000C33E61CB0000000473424954080808087C0864880000364949
@@ -530,14 +534,14 @@ object frmMain: TfrmMain
       Visible = False
     end
     object Label3: TLabel
-      Left = 370
-      Top = 53
+      Left = 365
+      Top = 52
       Width = 24
       Height = 15
       Caption = 'Text:'
     end
     object btnAddText: TButton
-      Left = 16
+      Left = 167
       Top = 19
       Width = 83
       Height = 25
@@ -546,7 +550,7 @@ object frmMain: TfrmMain
       OnClick = btnAddTextClick
     end
     object btnAddGraphic: TButton
-      Left = 112
+      Left = 256
       Top = 19
       Width = 83
       Height = 25
@@ -555,8 +559,8 @@ object frmMain: TfrmMain
       OnClick = btnAddGraphicClick
     end
     object btnSave: TButton
-      Left = 621
-      Top = 50
+      Left = 616
+      Top = 49
       Width = 65
       Height = 25
       Caption = 'Save'
@@ -564,8 +568,8 @@ object frmMain: TfrmMain
       OnClick = btnSaveClick
     end
     object btnClear: TButton
-      Left = 550
-      Top = 50
+      Left = 545
+      Top = 49
       Width = 65
       Height = 25
       Caption = 'Clear'
@@ -573,7 +577,7 @@ object frmMain: TfrmMain
       OnClick = btnClearClick
     end
     object btnAddRectangle: TButton
-      Left = 16
+      Left = 167
       Top = 50
       Width = 83
       Height = 25
@@ -582,8 +586,8 @@ object frmMain: TfrmMain
       OnClick = btnAddRectangleClick
     end
     object btnAddEllipse: TButton
-      Left = 112
-      Top = 50
+      Left = 167
+      Top = 81
       Width = 83
       Height = 25
       Caption = 'Add Ellipse'
@@ -591,8 +595,8 @@ object frmMain: TfrmMain
       OnClick = btnAddEllipseClick
     end
     object btnFont: TButton
-      Left = 692
-      Top = 19
+      Left = 687
+      Top = 18
       Width = 65
       Height = 25
       Caption = 'Font'
@@ -600,8 +604,8 @@ object frmMain: TfrmMain
       OnClick = btnFontClick
     end
     object btnBorderColor: TButton
-      Left = 621
-      Top = 19
+      Left = 616
+      Top = 18
       Width = 65
       Height = 25
       Caption = 'Border'
@@ -609,8 +613,8 @@ object frmMain: TfrmMain
       OnClick = btnBorderColorClick
     end
     object btnFillColor: TButton
-      Left = 550
-      Top = 19
+      Left = 545
+      Top = 18
       Width = 65
       Height = 25
       Caption = 'Fill'
@@ -618,8 +622,8 @@ object frmMain: TfrmMain
       OnClick = btnFillColorClick
     end
     object chkNoFill: TCheckBox
-      Left = 486
-      Top = 23
+      Left = 481
+      Top = 22
       Width = 58
       Height = 17
       Caption = 'No Fill'
@@ -627,8 +631,8 @@ object frmMain: TfrmMain
       OnClick = chkNoFillClick
     end
     object btnLoad: TButton
-      Left = 692
-      Top = 50
+      Left = 687
+      Top = 49
       Width = 65
       Height = 25
       Caption = 'Load'
@@ -636,16 +640,16 @@ object frmMain: TfrmMain
       OnClick = btnLoadClick
     end
     object txtTextItem: TEdit
-      Left = 400
-      Top = 50
+      Left = 395
+      Top = 49
       Width = 144
       Height = 23
       TabOrder = 8
       OnChange = txtTextItemChange
     end
     object chkNoBorder: TCheckBox
-      Left = 400
-      Top = 23
+      Left = 395
+      Top = 22
       Width = 80
       Height = 17
       Caption = 'No Border'
@@ -653,8 +657,8 @@ object frmMain: TfrmMain
       OnClick = chkNoBorderClick
     end
     object Button3: TButton
-      Left = 201
-      Top = 19
+      Left = 256
+      Top = 50
       Width = 83
       Height = 25
       Caption = 'Round Rect'
@@ -662,31 +666,47 @@ object frmMain: TfrmMain
       OnClick = Button3Click
     end
     object Button5: TButton
-      Left = 763
-      Top = 50
-      Width = 75
+      Left = 256
+      Top = 81
+      Width = 83
       Height = 25
       Action = actSelectAll
       TabOrder = 14
+    end
+    object RadioGroup1: TRadioGroup
+      Left = 16
+      Top = 13
+      Width = 137
+      Height = 93
+      Caption = 'Mode'
+      ItemIndex = 0
+      Items.Strings = (
+        'Select'
+        'Draw Rectangle'
+        'Draw Ellipse')
+      TabOrder = 15
+      OnClick = RadioGroup1Click
     end
   end
   object StatusBar1: TStatusBar
     Left = 0
     Top = 641
-    Width = 850
+    Width = 796
     Height = 19
     Panels = <>
     SimplePanel = True
+    ExplicitWidth = 850
   end
   object Panel2: TPanel
     Left = 0
     Top = 592
-    Width = 850
+    Width = 796
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
     PopupMenu = alignPopup
     TabOrder = 2
+    ExplicitWidth = 850
     object Label1: TLabel
       Left = 564
       Top = 14
