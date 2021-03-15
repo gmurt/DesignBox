@@ -255,7 +255,7 @@ type
     procedure DeleteSelected;
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
-
+    procedure SelectAll;
   end;
 
   TDesignBoxRulerOptions = class(TPersistent)
@@ -672,16 +672,17 @@ begin
   FMouseDownPos := Point(X, Y);
 
   AItem := FItems.ItemAtPos(x, y);
+
   if (ssShift in Shift) then ADeselectOthers := False;
   if (AItem <> nil) and (AItem.Selected) then ADeselectOthers := False;
 
   if ADeselectOthers then FItems.DeselectAll;
 
-  if (AItem <> nil) then
+  if (AItem <> nil) and (canSelect in AItem.Options) then
   begin
     case (ssShift in Shift) of
       True: AItem.Selected := not AItem.Selected;
-      False: AItem.Selected := True;
+      False: AItem.Selected := True and (canSelect in AItem.Options);
     end;
   end;
 
@@ -690,6 +691,7 @@ begin
 
   if (AItem <> nil) and (AItem.Selected) and (Assigned(FOnSelectItem)) then
     FOnSelectItem(Self, AItem);
+
 end;
 
 procedure TDesignBox.MouseMove(Shift: TShiftState; X, Y: Integer);
@@ -753,7 +755,7 @@ begin
     if (ADragArea.Width > 4) and (ADragArea.Height > 4) then
     for AItem in FItems do
     begin
-      AItem.Selected := AItem.RectsIntersect(ADragArea);
+      AItem.Selected := AItem.RectsIntersect(ADragArea) and (canSelect in AItem.Options);
     end;
   end
   else
@@ -1250,7 +1252,7 @@ begin
   inherited Create;
   FDesignBox := ADesignBox;
   FSelected := False;
-  FOptions := [canMove, canSize, canDelete];
+  FOptions := [low(TITemOption)..High(TItemOption)];
 end;
 
 destructor TDesignBoxBaseItem.Destroy;
@@ -1587,6 +1589,15 @@ begin
   end;
 end;
 
+
+procedure TDesignBoxItemList.SelectAll;
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  for AItem in Self do
+    if canSelect in AItem.Options then
+      AItem.Selected := TRUE;
+end;
 
 { TDesignBoxItemGraphic }
 

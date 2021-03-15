@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'frmMain'
   ClientHeight = 660
-  ClientWidth = 829
+  ClientWidth = 850
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -28,7 +28,7 @@ object frmMain: TfrmMain
   object Bevel2: TBevel
     Left = 0
     Top = 633
-    Width = 829
+    Width = 850
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,7 +37,7 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 821
+    Left = 842
     Top = 89
     Width = 8
     Height = 503
@@ -50,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 81
-    Width = 829
+    Width = 850
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,7 +60,7 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 89
-    Width = 813
+    Width = 834
     Height = 503
     Align = alClient
     BackgroundColor = clBtnFace
@@ -73,15 +73,17 @@ object frmMain: TfrmMain
     OnMouseMove = DesignBox1MouseMove
     OnSelectItem = DesignBox1SelectItem
     ExplicitTop = 87
+    ExplicitWidth = 813
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 829
+    Width = 850
     Height = 81
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitWidth = 829
     object Image1: TImage
       Left = 290
       Top = 3
@@ -616,14 +618,14 @@ object frmMain: TfrmMain
       TabOrder = 5
       OnClick = btnFillColorClick
     end
-    object CheckBox1: TCheckBox
+    object chkNoFill: TCheckBox
       Left = 486
       Top = 23
       Width = 58
       Height = 17
       Caption = 'No Fill'
       TabOrder = 4
-      OnClick = CheckBox1Click
+      OnClick = chkNoFillClick
     end
     object btnLoad: TButton
       Left = 692
@@ -642,14 +644,14 @@ object frmMain: TfrmMain
       TabOrder = 8
       OnChange = txtTextItemChange
     end
-    object CheckBox2: TCheckBox
+    object chkNoBorder: TCheckBox
       Left = 400
       Top = 23
       Width = 80
       Height = 17
       Caption = 'No Border'
       TabOrder = 12
-      OnClick = CheckBox2Click
+      OnClick = chkNoBorderClick
     end
     object Button3: TButton
       Left = 201
@@ -660,24 +662,34 @@ object frmMain: TfrmMain
       TabOrder = 13
       OnClick = Button3Click
     end
+    object Button5: TButton
+      Left = 763
+      Top = 50
+      Width = 75
+      Height = 25
+      Action = actSelectAll
+      TabOrder = 14
+    end
   end
   object StatusBar1: TStatusBar
     Left = 0
     Top = 641
-    Width = 829
+    Width = 850
     Height = 19
     Panels = <>
     SimplePanel = True
+    ExplicitWidth = 829
   end
   object Panel2: TPanel
     Left = 0
     Top = 592
-    Width = 829
+    Width = 850
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
     PopupMenu = alignPopup
     TabOrder = 2
+    ExplicitWidth = 829
     object Label1: TLabel
       Left = 564
       Top = 14
@@ -837,6 +849,7 @@ object frmMain: TfrmMain
     end
     object actDelete: TAction
       Caption = 'Delete'
+      ShortCut = 16430
       OnExecute = actDeleteExecute
     end
     object actUndo: TAction
@@ -866,6 +879,11 @@ object frmMain: TfrmMain
       Category = 'Alignment'
       Caption = 'Align to grid'
       OnExecute = actAlignleftExecute
+    end
+    object actSelectAll: TAction
+      Caption = 'Select All'
+      ShortCut = 16449
+      OnExecute = actSelectAllExecute
     end
   end
   object FontDialog1: TFontDialog

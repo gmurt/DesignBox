@@ -38,9 +38,9 @@ type
     FontDialog1: TFontDialog;
     dlgBorderColor: TColorDialog;
     dlgFillColor: TColorDialog;
-    CheckBox1: TCheckBox;
+    chkNoFill: TCheckBox;
     txtTextItem: TEdit;
-    CheckBox2: TCheckBox;
+    chkNoBorder: TCheckBox;
     Panel2: TPanel;
     Button1: TButton;
     Button2: TButton;
@@ -74,6 +74,8 @@ type
     actAlignToGrid: TAction;
     Aligntogrid1: TMenuItem;
     N2: TMenuItem;
+    actSelectAll: TAction;
+    Button5: TButton;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -92,8 +94,8 @@ type
     procedure btnBorderColorClick(Sender: TObject);
     procedure btnFillColorClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure CheckBox1Click(Sender: TObject);
-    procedure CheckBox2Click(Sender: TObject);
+    procedure chkNoFillClick(Sender: TObject);
+    procedure chkNoBorderClick(Sender: TObject);
     procedure txtTextItemChange(Sender: TObject);
     procedure actUndoExecute(Sender: TObject);
     procedure actRedoExecute(Sender: TObject);
@@ -111,6 +113,7 @@ type
     procedure actAlignleftExecute(Sender: TObject);
     procedure Button4DropDownClick(Sender: TObject);
     procedure actAlignToGridExecute(Sender: TObject);
+    procedure actSelectAllExecute(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -158,6 +161,11 @@ end;
 procedure TfrmMain.actRedoExecute(Sender: TObject);
 begin
   DesignBox1.Redo;
+end;
+
+procedure TfrmMain.actSelectAllExecute(Sender: TObject);
+begin
+  DesignBox1.items.SelectAll
 end;
 
 procedure TfrmMain.actSendBackwardsExecute(Sender: TObject);
@@ -237,19 +245,19 @@ begin
   Button4.DropDownMenu := alignPopup;
 end;
 
-procedure TfrmMain.CheckBox1Click(Sender: TObject);
+procedure TfrmMain.chkNoFillClick(Sender: TObject);
 begin
-  case CheckBox1.Checked of
+  case TCheckBox(Sender).Checked of
     True: DesignBox1.Brush.Style := bsClear;
     False: DesignBox1.Brush.Style := bsSolid;
   end;
 end;
 
-procedure TfrmMain.CheckBox2Click(Sender: TObject);
+procedure TfrmMain.chkNoBorderClick(Sender: TObject);
 const
   C_STYLES: array[boolean] of TPenStyle = (psSolid, psClear);
 begin
-  DesignBox1.Pen.Style := C_STYLES[CheckBox2.checked];
+  DesignBox1.Pen.Style := C_STYLES[TCheckBox(Sender).checked];
 end;
 
 procedure TfrmMain.CheckBox3Click(Sender: TObject);
@@ -312,10 +320,21 @@ end;
 
 procedure TfrmMain.DesignBox1SelectItem(Sender: TObject; AItem: TDesignBoxBaseItem);
 begin
+  if not assigned(AItem) then EXIT;
   if AItem is TDesignBoxItemText then
     txtTextItem.Text := TDesignBoxItemText(AItem).Text
   else
     txtTextItem.text := '';
+  if Aitem is TDesignBoxItemOutlineShape then
+    chkNoBorder.checked := TDesignBoxItemOutlineShape(AItem).Pen.style = psClear;
+  if AItem is TDesignBoxItemFilledShape then
+    chkNoFill.checked := TDesignBoxItemFilledShape(aItem).Brush.Style = bsClear;
+  if AItem is TDesignBoxItemText then
+  begin
+    chkNoBorder.checked := TDesignBoxItemText(AItem).Pen.style = psClear;
+    chkNoFill.checked := TDesignBoxItemText(AItem).Brush.Style = bsClear;
+  end;
+
   {UpdateItemCoords(DesignBox1.SelectedItem);
   // no selected item = set default fonts/color for next item
   btnFont.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemText);
@@ -335,9 +354,21 @@ begin
 end;
 
 procedure TfrmMain.DoShow;
+var
+  textItem: TDesignBoxItemText;
+  textSize : TSizeF;
+const
+  C_DESIGNBOX = 'DesignBox';
 begin
   inherited;
   UpdateActionStates;
+  //
+  textSize := DesignBox1.measureText(C_DESIGNBOX);
+  textItem := DesignBox1.items.AddText(DesignBox1.PageWidthMM - textSize.Width - 1, DesignBox1.PageHeightMM - textSize.Height - 1, C_DESIGNBOX);
+  textItem.Font.Color := clGrayText;
+  textItem.Pen.Style := psClear;
+  textItem.Brush.Style := bsClear;
+  textItem.options := []; // can't select, move, size or delete
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
