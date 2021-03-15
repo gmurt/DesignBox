@@ -97,6 +97,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\DesignBox.pas"/>
+        <None Include="DesignBoxDemo.todo"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -126,6 +127,12 @@
                 <DeployFile LocalName="Win32\Debug\DesignBoxDemo.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>DesignBoxDemo.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="DesignBoxDemo.todo" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

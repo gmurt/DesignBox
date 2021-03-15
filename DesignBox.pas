@@ -1388,6 +1388,7 @@ begin
   Result.TopMM := ATopMM;
   Result.Text := AText;
   Result.Brush.Assign(FDesignBox.Brush);
+  Result.Font.Assign(FDesignBox.Font);
   Add(Result);
   FDesignBox.Redraw;
   FDesignBox.RecordSnapshot;
