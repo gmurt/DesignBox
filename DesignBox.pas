@@ -258,9 +258,13 @@ type
     fForegroundColor: TColor;
     fBackgroundColor: TColor;
     fVisible: Boolean;
+    fRulerHeightPx : integer;
+    fRulerWidthPx : integer;
     procedure SetBackgroundColor(const Value: TColor);
     procedure SetForegroundColor(const Value: TColor);
     procedure SetVisible(const Value: boolean);
+    function GetHeightPx: integer;
+    function GetWidthPx: integer;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     procedure Assign(Source: TPersistent); override;
@@ -270,6 +274,8 @@ type
     property ForegroundColor: TColor read fForegroundColor write SetForegroundColor default clBlack;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clWhite;
     property Visible: boolean read fVisible write SetVisible default true;
+    property WidthPx : integer read GetWidthPx;
+    property HeightPx : integer read GetHeightPx;
   end;
 
   TDesignBoxGridOptions = class(TPersistent)
@@ -374,6 +380,7 @@ type
     function CanUndo : boolean;
     function CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
+    function MeasureText(const aText: string): TSizeF;
   published
     property Align;
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
@@ -390,10 +397,12 @@ type
     property OnMouseUp;
     property OnResize;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
-
   end;
 
 procedure Register;
+
+function MmToPixels(AValue: Extended): Extended;
+function PixelsToMM(AValue: Extended) : Extended;
 
 implementation
 
@@ -620,6 +629,13 @@ begin
   end;
 end;
 
+function TDesignBox.MeasureText(const aText: string): TSizeF;
+begin
+  result := Canvas.TextExtent(aText);
+  result.cx := PixelsToMM(result.cx);
+  result.cy := PixelsToMM(result.cy);
+end;
+
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
   AItem: TDesignBoxBaseItem;
@@ -769,6 +785,9 @@ const
   C_LITTLE_MARK = 5;
 begin
   APxPerMm := C_DPI/ 25.4;
+
+  FRulerOptions.fRulerWidthPx := fPageOffset.X;
+  FRulerOptions.fRulerHeightPx := fPageOffset.Y;
 
   ACanvas.Brush.Color := fRulerOptions.BackgroundColor;
   ACanvas.Pen.Style := psClear;
@@ -1113,6 +1132,8 @@ end;
 procedure TDesignBox.SetPageHeightMM(const Value: integer);
 begin
   FPageSizeMM.Height := Value;
+  if assigned(OnResize) then
+    OnResize(Self);
   Redraw;
 end;
 
@@ -1120,12 +1141,16 @@ procedure TDesignBox.SetPageSize(APageSize: TSize);
 begin
   FPageSizeMM.Width := APageSize.Width;
   FPageSizeMM.Height := APageSize.Height;
+  if assigned(onResize) then
+    OnResize(Self);
   Redraw;
 end;
 
 procedure TDesignBox.SetPageWidthMM(const Value: integer);
 begin
   FPageSizeMM.Width := Value;
+  if assigned(OnResize) then
+    OnResize(self);
   Redraw;
 end;
 
@@ -2060,6 +2085,16 @@ begin
   fBackgroundColor := clWhite;
   fForegroundColor := clBlack;
   fVisible := true;
+end;
+
+function TDesignBoxRulerOptions.GetHeightPx: integer;
+begin
+  result := fRulerHeightPx;
+end;
+
+function TDesignBoxRulerOptions.GetWidthPx: integer;
+begin
+  result := fRulerWidthPx;
 end;
 
 procedure TDesignBoxRulerOptions.LoadFromJsonObject(AJson: TJsonObject);
