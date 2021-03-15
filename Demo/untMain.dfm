@@ -83,7 +83,6 @@ object frmMain: TfrmMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitWidth = 829
     object Image1: TImage
       Left = 290
       Top = 3
@@ -678,7 +677,6 @@ object frmMain: TfrmMain
     Height = 19
     Panels = <>
     SimplePanel = True
-    ExplicitWidth = 829
   end
   object Panel2: TPanel
     Left = 0
@@ -689,7 +687,6 @@ object frmMain: TfrmMain
     BevelOuter = bvNone
     PopupMenu = alignPopup
     TabOrder = 2
-    ExplicitWidth = 829
     object Label1: TLabel
       Left = 564
       Top = 14
@@ -906,8 +903,8 @@ object frmMain: TfrmMain
     Top = 352
   end
   object alignPopup: TPopupMenu
-    Left = 680
-    Top = 464
+    Left = 392
+    Top = 504
     object AlignLeft1: TMenuItem
       Action = actAlignleft
     end

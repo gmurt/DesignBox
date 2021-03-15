@@ -74,7 +74,6 @@ type
     actAlignToGrid: TAction;
     Aligntogrid1: TMenuItem;
     N2: TMenuItem;
-    actSelectAll: TAction;
     Button5: TButton;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
@@ -190,24 +189,24 @@ end;
 
 procedure TfrmMain.btnBorderColorClick(Sender: TObject);
 begin
-  if dlgBorderColor.Execute then DesignBox1.Pen.Color := dlgBorderColor.Color;
+  if dlgBorderColor.Execute then DesignBox1.Canvas.Pen.Color := dlgBorderColor.Color;
 end;
 
 procedure TfrmMain.btnFillColorClick(Sender: TObject);
 begin
-  if (dlgFillColor.Execute) then DesignBox1.Brush.Color := dlgFillColor.Color;
+  if (dlgFillColor.Execute) then DesignBox1.Canvas.Brush.Color := dlgFillColor.Color;
 end;
 
 procedure TfrmMain.btnFontClick(Sender: TObject);
 begin
- if FontDialog1.execute then DesignBox1.Font.Assign(FontDialog1.Font);
+ if FontDialog1.execute then DesignBox1.Canvas.Font.Assign(FontDialog1.Font);
 end;
 
 procedure TfrmMain.btnAddTextClick(Sender: TObject);
 var
   item: TDesignBoxItemText;
 begin
-  item := DesignBox1.Items.AddText(20, 20, txtTextItem.text);
+  item := DesignBox1.Canvas.TextOut(20, 20, txtTextItem.text);
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -216,7 +215,7 @@ procedure TfrmMain.btnAddGraphicClick(Sender: TObject);
 var
   item: TDesignBoxItemGraphic;
 begin
-  item := DesignBox1.Items.AddGraphic(20, 20, Image1.Picture.Graphic);
+  item := DesignBox1.Canvas.Draw(20, 20, Image1.Picture.Graphic);
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -230,7 +229,7 @@ procedure TfrmMain.Button3Click(Sender: TObject);
 var
   item: TDesignBoxItemRectangle;
 begin
-  item := DesignBox1.Items.AddRectangle(RectF(20, 20, 40, 40), 5);
+  item := DesignBox1.Canvas.Rectangle(RectF(20, 20, 40, 40), 5);
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -248,8 +247,8 @@ end;
 procedure TfrmMain.chkNoFillClick(Sender: TObject);
 begin
   case TCheckBox(Sender).Checked of
-    True: DesignBox1.Brush.Style := bsClear;
-    False: DesignBox1.Brush.Style := bsSolid;
+    True: DesignBox1.Canvas.Brush.Style := bsClear;
+    False: DesignBox1.Canvas.Brush.Style := bsSolid;
   end;
 end;
 
@@ -257,7 +256,7 @@ procedure TfrmMain.chkNoBorderClick(Sender: TObject);
 const
   C_STYLES: array[boolean] of TPenStyle = (psSolid, psClear);
 begin
-  DesignBox1.Pen.Style := C_STYLES[TCheckBox(Sender).checked];
+  DesignBox1.Canvas.Pen.Style := C_STYLES[TCheckBox(Sender).checked];
 end;
 
 procedure TfrmMain.CheckBox3Click(Sender: TObject);
@@ -289,7 +288,7 @@ procedure TfrmMain.btnAddRectangleClick(Sender: TObject);
 var
   item: TDesignBoxItemRectangle;
 begin
-  item := DesignBox1.Items.AddRectangle(RectF(20, 20, 40, 40));
+  item := DesignBox1.Canvas.Rectangle(RectF(20, 20, 40, 40));
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -298,7 +297,7 @@ procedure TfrmMain.btnAddEllipseClick(Sender: TObject);
 var
   item: TDesignBoxItemEllipse;
 begin
-  item := DesignBox1.Items.AddEllipse(RectF(20, 20, 40, 40));
+  item := DesignBox1.Canvas.Ellipse(RectF(20, 20, 40, 40));
   DesignBox1.items.DeselectAll;
   item.selected := True;
 end;
@@ -363,8 +362,8 @@ begin
   inherited;
   UpdateActionStates;
   //
-  textSize := DesignBox1.measureText(C_DESIGNBOX);
-  textItem := DesignBox1.items.AddText(DesignBox1.PageWidthMM - textSize.Width - 1, DesignBox1.PageHeightMM - textSize.Height - 1, C_DESIGNBOX);
+  textSize := DesignBox1.Canvas.MeasureText(C_DESIGNBOX);
+  textItem := DesignBox1.Canvas.TextOut(DesignBox1.PageWidthMM - textSize.Width - 1, DesignBox1.PageHeightMM - textSize.Height - 1, C_DESIGNBOX);
   textItem.Font.Color := clGrayText;
   textItem.Pen.Style := psClear;
   textItem.Brush.Style := bsClear;
