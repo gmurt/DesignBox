@@ -14,7 +14,7 @@ uses
 
 type
 
-  TItemOption = (canSize, canMove, canDelete);
+  TItemOption = (canSize, canMove, canDelete, canSelect);
   TItemOptions = set of TItemOption;
 
   TDesignBox = class;
@@ -387,6 +387,7 @@ type
     function CanUndo : boolean;
     function CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
+    function MeasureText(const aText: string): TSizeF;
   published
     property Align;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clSilver;
@@ -405,10 +406,12 @@ type
   end;
 
 procedure Register;
+function MmToPixels(AValue: Extended): integer;
+function PixelsToMM(AValue: Extended) : single;
 
 implementation
 
-uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes, Forms;
+uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes, Forms, System.RTTI;
 
 const
   C_HIGHLIGHT_COLOR = clHotlight;
@@ -643,6 +646,13 @@ begin
   finally
     AJson.Free;
   end;
+end;
+
+function TDesignBox.MeasureText(const aText: string): TSizeF;
+begin
+  result := Canvas.TextExtent(aText);
+  result.cx := PixelsToMM(result.cx);
+  result.cy := PixelsToMM(result.cy);
 end;
 
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -1321,20 +1331,44 @@ begin
 end;
 
 procedure TDesignBoxBaseItem.LoadFromJson(AJson: TJsonObject);
+var
+  jOptions: TJsonArray;
+  aOption : TItemOption;
+  jv: TJsonValue;
 begin
   FPosition.X := MmToPixels(StrToFloatDef(AJson.Values['x'].Value, 0));
   FPosition.Y := MmToPixels(StrToFloatDef(AJson.Values['y'].Value, 0));
   FWidth := MmToPixels(StrToFloatDef(AJson.Values['width'].Value, 0));
   FHeight := MmToPixels(StrToFloatDef(AJson.Values['height'].Value, 0));
+  if assigned(aJson.Values['options']) then
+  begin
+    fOptions := [];
+    jOptions := aJson.Values['options'] as TJsonArray;
+    for jv in jOptions do
+    begin
+      if jv is TJSONString then
+      begin
+        aOption := TRttiEnumerationType.GetValue<TItemOption>(TJsonString(jv).Value);
+        include(fOptions, aOption);
+      end;
+    end;
+  end;
 end;
 
 procedure TDesignBoxBaseItem.SaveToJson(AJson: TJsonObject);
+var
+  aOption : TItemOption;
+  jOptions : TJsonArray;
 begin
   AJson.AddPair('obj', ClassName);
   AJson.AddPair('x',  PixelsToMm(FPosition.X).ToString);
   AJson.AddPair('y', PixelsToMm(FPosition.Y).ToString);
   AJson.AddPair('width', PixelsToMm(FWidth).ToString);
   AJson.AddPair('height',PixelsToMm(FHeight).ToString);
+  jOptions := TJsonArray.Create;
+  for aOption in fOptions do
+    jOptions.Add(TRttiEnumerationType.GetName(aOption));
+  AJson.AddPair('options', jOptions);
 end;
 
 procedure TDesignBoxBaseItem.SetHeightMm(const Value: Extended);
