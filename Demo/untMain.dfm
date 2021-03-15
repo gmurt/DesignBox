@@ -65,14 +65,14 @@ object frmMain: TfrmMain
     Align = alClient
     GridOptions.Visible = True
     PopupMenu = PopupMenu1
+    BackgroundColor = clBtnFace
     PageWidthMM = 190
     PageHeightMM = 100
     OnChange = DesignBox1Change
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     OnSelectItem = DesignBox1SelectItem
-    ExplicitWidth = 817
-    ExplicitHeight = 483
+    ExplicitTop = 87
   end
   object Panel1: TPanel
     Left = 0

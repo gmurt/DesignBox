@@ -317,6 +317,7 @@ type
     FFont: TFont;
     FPen: TPen;
     FBackgroundColor: TColor;
+    fPageColor : TColor;
     FUpdating: Boolean;
     FPageOffset: TPoint;
     FPageSizeMM: TSize;
@@ -344,6 +345,7 @@ type
     procedure SetGridOptions(const Value: TDesignBoxGridOptions);
     procedure DrawGrid(ACanvas: TCanvas);
     procedure SetRulerOptions(const Value: TDesignBoxRulerOptions);
+    procedure SetPageColor(const Value: TColor);
   protected
     procedure Paint; override;
     procedure Resize; override;
@@ -370,7 +372,6 @@ type
     property Brush: TBrush read FBrush write SetBrush;
     property Font: TFont read FFont write SetFont;
     property Pen: TPen read FPen write SetPen;
-    property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor;
     property Items: TDesignBoxItemList read FItems;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
     procedure Redraw;
@@ -386,9 +387,8 @@ type
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
     property PopupMenu;
     property RulerOptions: TDesignBoxRulerOptions read fRulerOptions write SetRulerOptions;
-//    property RulerBackground: TColor read GetRulerBackground write SetRulerBackground default clWhite;
-//    property RulerForeground: TColor read GetRulerForeground write SetRulerForeground default clBlack;
-//    property ShowRulers: Boolean read GetShowRulers write SetShowRulers default True;
+    property PageColor : TColor read fPageColor write SetPageColor default clWhite;
+    property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor;
     property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
     property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -534,12 +534,13 @@ begin
   // This must be after creating any sub-objects as it calls CreateSnapshot and we need all objects instanciated
   FUndoList := TDesignUndoList.Create(Self);
 
-  ResizeCanvas;
   FBrush.OnChange := OnBrushChanged;
   FFont.OnChange := OnFontChanged;;
   FPen.OnChange := OnPenChanged;
-  FBackgroundColor := clWhite;
+  FBackgroundColor := clLtGray;
+  FPageColor := clWhite;
   FUpdating := False;
+  ResizeCanvas;
   Redraw;
 end;
 
@@ -878,12 +879,12 @@ var
   ARect: TRect;
   aRulerWidth: integer;
 begin
-  aRulerWidth := Canvas.TextWidth('9999');
+  aRulerWidth := Canvas.TextWidth('9999') + 6;
   case FRulerOptions.Visible of
     True: FPageOffset := Point(aRulerWidth, aRulerWidth); // slightly narrower
     False: FPageOffset := Point(0, 0);
   end;
-  Canvas.Brush.Color := clLtGray;
+  Canvas.Brush.Color := fBackgroundColor;
 
   Canvas.FillRect(ClientRect);
   Canvas.FrameRect(ClientRect);
@@ -939,7 +940,7 @@ begin
   //FBuffer.Free;
   //FBuffer := TBitmap.Create;
   ResizeCanvas;
-  FBuffer.Canvas.Brush.Color := BackGroundColor;
+  FBuffer.Canvas.Brush.Color := PageColor;
   FBuffer.Canvas.Brush.Style := bsSolid;
   FBuffer.Canvas.Pen.Color := clBlack;
   FBuffer.Canvas.Rectangle(0, 0, FBuffer.Width, FBuffer.Height);
@@ -1127,6 +1128,12 @@ end;
 procedure TDesignBox.SetGridOptions(const Value: TDesignBoxGridOptions);
 begin
   FGridOptions.Assign(Value);
+end;
+
+procedure TDesignBox.SetPageColor(const Value: TColor);
+begin
+  fPageColor := Value;
+  Redraw;
 end;
 
 procedure TDesignBox.SetPageHeightMM(const Value: integer);
