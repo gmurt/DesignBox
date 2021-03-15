@@ -388,6 +388,7 @@ type
     property OnMouseDown;
     property OnMouseMove;
     property OnMouseUp;
+    property OnResize;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
 
   end;
