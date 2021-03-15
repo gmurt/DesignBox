@@ -63,9 +63,9 @@ object frmMain: TfrmMain
     Width = 813
     Height = 503
     Align = alClient
+    BackgroundColor = clBtnFace
     GridOptions.Visible = True
     PopupMenu = PopupMenu1
-    BackgroundColor = clBtnFace
     PageWidthMM = 190
     PageHeightMM = 100
     OnChange = DesignBox1Change
@@ -861,6 +861,12 @@ object frmMain: TfrmMain
       Caption = 'Align Bottom'
       OnExecute = actAlignleftExecute
     end
+    object actAlignToGrid: TAction
+      Tag = 4
+      Category = 'Alignment'
+      Caption = 'Align to grid'
+      OnExecute = actAlignleftExecute
+    end
   end
   object FontDialog1: TFontDialog
     Font.Charset = DEFAULT_CHARSET
@@ -895,6 +901,12 @@ object frmMain: TfrmMain
     end
     object AlignBottom1: TMenuItem
       Action = actAlignBottom
+    end
+    object N2: TMenuItem
+      Caption = '-'
+    end
+    object Aligntogrid1: TMenuItem
+      Action = actAlignToGrid
     end
   end
 end

@@ -117,6 +117,7 @@ type
     function PointInRgn(x, y: integer): Boolean;
     function RectsIntersect(ARect: TRect): Boolean;
     procedure UpdateToDragPosition;
+    procedure SnapToGrid;
     procedure SaveToJson(AJson: TJsonObject); virtual;
     procedure LoadFromJson(AJson: TJsonObject); virtual;
     property Selected: Boolean read FSelected write SetSelectedItem;
@@ -464,19 +465,17 @@ end;
 procedure TDesignBox.AlignItems(const aAlignment: TItemAlignment);
 var
   AItem: TDesignBoxBaseItem;
-  aSelectedItemsPixelRect: TRect; // what pixel (horz or vert) are we aligning on?
+  ASelectedRect: TRect; // what pixel (horz or vert) are we aligning on?
 begin
-  if FSelectedItems.Count < 2 then EXIT;
-
-  aSelectedItemsPixelRect := SelectedItems.BoundsRect; // SelectedItemsPixelRect;
+  ASelectedRect := SelectedItems.BoundsRect;
   for AItem in FSelectedItems do
   begin
     case aAlignment of
-      ialLeftSides:   AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Left);
-      ialTopSides:    AItem.TopMM  := PixelsToMM(aSelectedItemsPixelRect.Top);
-      ialRightSides:  AItem.LeftMM := PixelsToMM(aSelectedItemsPixelRect.Right) - aItem.WidthMM;
-      ialBottomSides: Aitem.TopMM := PixelsToMM(aSelectedItemsPixelRect.Bottom) - AItem.HeightMM;
-      ialToGrid: ;
+      ialLeftSides:   AItem.LeftMM := PixelsToMM(ASelectedRect.Left);
+      ialTopSides:    AItem.TopMM  := PixelsToMM(ASelectedRect.Top);
+      ialRightSides:  AItem.LeftMM := PixelsToMM(ASelectedRect.Right) - aItem.WidthMM;
+      ialBottomSides: Aitem.TopMM  := PixelsToMM(ASelectedRect.Bottom) - AItem.HeightMM;
+      ialToGrid: AItem.SnapToGrid;
     end;
   end;
 
@@ -1279,12 +1278,12 @@ end;
 
 function TDesignBoxBaseItem.GetLeftMM: Extended;
 begin
-  Result := FPosition.X;
+  Result := PixelsToMM(FPosition.X);
 end;
 
 function TDesignBoxBaseItem.GetTopMM: Extended;
 begin
-  Result := FPosition.Y;
+  Result := PixelsToMM(FPosition.Y);
 end;
 
 
@@ -1370,6 +1369,16 @@ end;
 procedure TDesignBoxBaseItem.SetWidthMM(const Value: Extended);
 begin
   FWidth := MmToPixels(Value)
+end;
+
+procedure TDesignBoxBaseItem.SnapToGrid;
+var
+  AGridMm: integer;
+begin
+  AGridMm := FDesignBox.GridOptions.SizeMm;
+  LeftMM := (Round(LeftMM / AGridMm) * AGridMm);
+  TopMM := (Round(TopMM / AGridMm) * AGridMm);
+  Changed;
 end;
 
 { TDesignBoxItemList }

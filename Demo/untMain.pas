@@ -71,6 +71,9 @@ type
     AlignRight1: TMenuItem;
     AlignTop1: TMenuItem;
     AlignBottom1: TMenuItem;
+    actAlignToGrid: TAction;
+    Aligntogrid1: TMenuItem;
+    N2: TMenuItem;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -107,6 +110,7 @@ type
     procedure Button4Click(Sender: TObject);
     procedure actAlignleftExecute(Sender: TObject);
     procedure Button4DropDownClick(Sender: TObject);
+    procedure actAlignToGridExecute(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -127,6 +131,11 @@ implementation
 {$R *.dfm}
 
 procedure TfrmMain.actAlignleftExecute(Sender: TObject);
+begin
+  DesignBox1.AlignItems(TItemAlignment(TAction(Sender).tag));
+end;
+
+procedure TfrmMain.actAlignToGridExecute(Sender: TObject);
 begin
   DesignBox1.AlignItems(TItemAlignment(TAction(Sender).tag));
 end;
