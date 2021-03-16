@@ -230,7 +230,8 @@ end;
 
 procedure TfrmMain.btnFontClick(Sender: TObject);
 begin
- if FontDialog1.execute then DesignBox1.Canvas.Font.Assign(FontDialog1.Font);
+ if FontDialog1.execute then
+  DesignBox1.Font.Assign(FontDialog1.Font);
 end;
 
 procedure TfrmMain.btnAddTextClick(Sender: TObject);
@@ -436,11 +437,20 @@ end;
 
 procedure TfrmMain.RadioGroup1Click(Sender: TObject);
 begin
+  //Set Mode
+  if TRadioGroup(Sender).ItemIndex = 0 then
+    DesignBox1.Mode := dbmSelect
+  else
+    DesignBox1.Mode := dbmDraw;
+
+  // Set Drawing Class
   case RadioGroup1.ItemIndex of
-    0: DesignBox1.Mode := dbmSelect;
-    1: DesignBox1.Mode := dbmDrawRect;
-    2: DesignBox1.Mode := dbmDrawEllipse;
+    1: DesignBox1.DrawClass := TDesignBoxItemRectangle;
+    2: DesignBox1.DrawClass := TDesignBoxItemEllipse;
+    3: DesignBox1.DrawClass := TDesignBoxItemText;
+    else DesignBox1.DrawClass := TDesignBoxItemRectangle
   end;
+
 end;
 
 procedure TfrmMain.SpinEdit1Change(Sender: TObject);
@@ -495,8 +505,17 @@ begin
   AIndex := 0;
   case DesignBox1.Mode of
     dbmSelect: AIndex := 0;
-    dbmDrawRect: AIndex := 1;
-    dbmDrawEllipse: AIndex := 2;
+    dbmDraw :
+    begin
+      if DesignBox1.DrawClass = TDesignBoxItemRectangle then
+        AIndex := 1
+      else
+      if DesignBox1.DrawClass = TDesignBoxItemEllipse then
+        AIndex := 2
+      else
+      if DesignBox1.DrawClass = TDesignBoxItemText then
+        AIndex := 3;
+    end;
   end;
   RadioGroup1.ItemIndex := AIndex;
 end;

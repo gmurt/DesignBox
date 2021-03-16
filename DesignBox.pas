@@ -13,7 +13,7 @@ uses
   vcl.Graphics, System.Generics.Defaults, System.Json;
 
 type
-  TDesignBoxMode = (dbmSelect, dbmDrawRect, dbmDrawEllipse);
+  TDesignBoxMode = (dbmSelect, dbmDraw);
 
   TItemOption = (canSize, canMove, canDelete, canSelect);
   TItemOptions = set of TItemOption;
@@ -356,6 +356,7 @@ type
   TDesignBox = class(TGraphicControl)
   private
     FMode: TDesignBoxMode;
+    fDrawClass : TDesignBoxBaseItemClass;
     FCanvas: TDesignBoxCanvas;
     FItems: TDesignBoxItemList;
     FSelectedItems: TDesignBoxItemList;
@@ -387,6 +388,8 @@ type
     procedure DrawGrid(ACanvas: TCanvas);
     procedure SetRulerOptions(const Value: TDesignBoxRulerOptions);
     procedure SetPageColor(const Value: TColor);
+    function GetFont: TFont;
+    procedure SetFont(const Value: TFont);
   protected
     procedure Loaded; override;
     procedure Paint; override;
@@ -423,9 +426,12 @@ type
     function  CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
 
+    property Font : TFont read GetFont write SetFont; // will hide the base TControl.Font implementation?
+
     property Canvas: TDesignBoxCanvas read FCanvas;
     property Items: TDesignBoxItemList read FItems;
     property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
+    property DrawClass : TDesignBoxBaseItemClass read fDrawClass write fDrawClass;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
 
   published
@@ -579,6 +585,7 @@ end;
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
+  fDrawClass := TDesignBoxItemRectangle; // default
   FUpdating := True;
   FCanvas := TDesignBoxCanvas.Create(Self);
   FBuffer := TBitmap.Create;
@@ -612,6 +619,11 @@ begin
   FGridOptions.Free;
   FRulerOptions.Free;
   inherited;
+end;
+
+function TDesignBox.GetFont: TFont;
+begin
+  result := FCanvas.Font;
 end;
 
 function TDesignBox.GetPageHeightMM: integer;
@@ -786,6 +798,7 @@ var
   ADragArea: TRect;
   AItem: TDesignBoxBaseItem;
   ARect: TRectF;
+  ANewItem : TDesignBoxBaseItem;
 begin
   inherited;
   X := X - FPageOffset.X;
@@ -815,9 +828,17 @@ begin
                 PixelsToMM(FMouseXY.X),
                 PixelsToMM(FMouseXY.Y));
   ARect.NormalizeRect;
-  case FMode of
-     dbmDrawRect    : FCanvas.Rectangle(ARect, 0);
-     dbmDrawEllipse : FCanvas.Ellipse(ARect);
+  if (FMode = dbmDraw) then
+  begin
+    // FCanvas.Rectangle(ARect, 0);
+    aNewItem := fDrawClass.Create(self);
+    aNewItem.LeftMM := aRect.Left;
+    aNewItem.TopMM := aRect.Top;
+    aNewItem.WidthMM := aRect.Width;
+    aNewItem.HeightMM := aRect.Height;
+    if aNewItem is TDesignBoxItemText then
+      TDesignBoxItemText(aNewItem).Text := format('Item %d', [Succ(fItems.Count)]);
+    fItems.add(aNewItem);
   end;
 
   Redraw;
@@ -1131,6 +1152,11 @@ end;
 
 
 
+procedure TDesignBox.SetFont(const Value: TFont);
+begin
+  fCanvas.Font.assign(Value);
+end;
+
 procedure TDesignBox.SetGridOptions(const Value: TDesignBoxGridOptions);
 begin
   FGridOptions.Assign(Value);
@@ -1200,8 +1226,7 @@ constructor TDesignBoxItemText.Create(ADesignBox: TDesignBox);
 begin
   inherited Create(ADesignBox);
   FFont := TDesignFont.Create;
-
-  FFont.Size := 16;
+  FFont.Assign(ADesignBox.Canvas.Font); //get the current font from DesignBox
   FFont.OnChange := DoFontChange;
 end;
 

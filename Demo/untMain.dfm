@@ -675,13 +675,14 @@ object frmMain: TfrmMain
       Left = 16
       Top = 13
       Width = 137
-      Height = 93
+      Height = 102
       Caption = 'Mode'
       ItemIndex = 0
       Items.Strings = (
         'Select'
         'Draw Rectangle'
-        'Draw Ellipse')
+        'Draw Ellipse'
+        'Draw Text')
       TabOrder = 15
       OnClick = RadioGroup1Click
     end
