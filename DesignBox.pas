@@ -1,10 +1,5 @@
 unit DesignBox;
 
-{ DONE : Grid not being drawn correctly - set to 20mm and it's drawing @ 25mm - https://i.imgur.com/bcM8KiS.png - appears to be because MMtoPixels using Screen DPI whereas others are using fixed 96 dpi }
-{ DONE : Snap to Grid not working as expected }
-{ DONE : High DPI support -- hard coded "96" needs to be Monitor.PixelsPerInch
-{ DONE : Undo goes back "too far" (UndoList[-1] ?) and then won't redo }
-{ DONE : Drag to select, followed by a single click off-object (to de-select) erases the grid }
 
 interface
 
@@ -244,7 +239,9 @@ type
   private
     FDesignBox: TDesignBox;
     function GetSelectedCount: integer;
+    procedure PaintToCanvas(ACanvas: TCanvas);
   protected
+
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function BoundsRect: TRect;
@@ -257,7 +254,7 @@ type
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
     procedure SelectAll;
-    procedure SelectItems(AItems: array of TDesignBoxBaseItem);
+    procedure SelectItems(AItems: array of TDesignBoxBaseItem; const ADeselectOthers: Boolean = False);
     property DesignBox: TDesignBox read fDesignBox;
 
 
@@ -420,6 +417,7 @@ type
     procedure SendBackwards;
     procedure SetPageSize(AWidthMM, AHeightMM: integer); overload;
     procedure SetPageSize(APageSize: TSize); overload;
+
     //property Brush: TBrush read FBrush write SetBrush;
     //property Font: TFont read FFont write SetFont;
     //property Pen: TPen read FPen write SetPen;
@@ -439,8 +437,12 @@ type
     property DrawClass : TDesignBoxBaseItemClass read fDrawClass write fDrawClass;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
 
-    procedure SaveAsJpeg(const aFilename: string; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false); overload;
-    procedure SaveAsJpeg(const aStream: TStream; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false); overload;
+    procedure SaveAsBitmap(const AFileName: string); overload;
+    procedure SaveAsBitmap(const ABitmap: TBitmap); overload;
+    procedure SaveAsBitmap(const AStream: TStream); overload;
+
+    procedure SaveAsJpeg(const aFilename: string; const aCompressionQuality: TJPEGQualityRange = 100; const aGrayscale: boolean = false); overload;
+    procedure SaveAsJpeg(const aStream: TStream; const aCompressionQuality: TJPEGQUalityRange = 100; const aGrayscale: boolean = false); overload;
     procedure SaveAsPNG(const aFileName: string; const aTransparent: boolean); overload;
     procedure SaveAsPNG(const aStream: TStream; const aTransparent: boolean); overload;
 
@@ -1007,6 +1009,7 @@ begin
 end;
 
 
+
 procedure TDesignBox.RecordSnapshot;
 begin
   if FUpdateCount > 0 then
@@ -1566,8 +1569,13 @@ procedure TDesignBoxItemList.DeselectAll;
 var
   AItem: TDesignBoxBaseItem;
 begin
-  for AItem in Self do
-    AItem.Selected := false;
+  FDesignBox.BeginUpdate;
+  try
+    for AItem in Self do
+      AItem.Selected := False;
+  finally
+    FDesignBox.Endupdate;
+  end;
 end;
 
 function TDesignBoxItemList.GetSelectedCount: integer;
@@ -1626,6 +1634,16 @@ begin
   end;
 end;
 
+procedure TDesignBoxItemList.PaintToCanvas(ACanvas: TCanvas);
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  for AItem in Self do
+  begin
+    AItem.PaintToCanvas(ACanvas);
+  end;
+end;
+
 procedure TDesignBoxItemList.SaveToJson(AJson: TJsonObject);
 var
   AItems: TJsonArray;
@@ -1647,18 +1665,30 @@ procedure TDesignBoxItemList.SelectAll;
 var
   AItem: TDesignBoxBaseItem;
 begin
-  for AItem in Self do
-    if canSelect in AItem.Options then
-      AItem.Selected := TRUE;
+  FDesignBox.BeginUpdate;
+  try
+    for AItem in Self do
+      if canSelect in AItem.Options then
+        AItem.Selected := TRUE;
+  finally
+    FDesignBox.Endupdate;
+  end;
 end;
 
-procedure TDesignBoxItemList.SelectItems(AItems: array of TDesignBoxBaseItem);
+procedure TDesignBoxItemList.SelectItems(AItems: array of TDesignBoxBaseItem; const ADeselectOthers: Boolean = False);
 var
   AItem: TDesignBoxBaseItem;
 begin
-  for AItem in AItems do
-    if canSelect in AItem.Options then
-      AItem.Selected := True;
+  FDesignBox.BeginUpdate;
+  try
+    if ADeselectOthers then
+      DesignBox.Items.DeselectAll;
+    for AItem in AItems do
+      if canSelect in AItem.Options then
+        AItem.Selected := True;
+  finally
+    FDesignBox.Endupdate;
+  end;
 end;
 
 { TDesignBoxItemGraphic }
@@ -1714,10 +1744,6 @@ var
 begin
   inherited;
   ARect := RectPixels;
-  // calculate width/height...
-  //FWidth := FGraphic.Width;
-  //FHeight := FGraphic.Height;
-
   ACanvas.StretchDraw(ARect, FGraphic.Graphic);
 end;
 
@@ -2442,7 +2468,7 @@ end;
 
 { Export }
 
-procedure TDesignBox.SaveAsJpeg(const aFilename: string; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false);
+procedure TDesignBox.SaveAsJpeg(const aFilename: string; const aCompressionQuality: TJPEGQUalityRange = 100; const aGrayscale: boolean = false);
 var
   aFileStream: TFileStream;
 begin
@@ -2454,68 +2480,79 @@ begin
   end;
 end;
 
-procedure TDesignBox.SaveAsJpeg(const aStream: TStream; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false);
+procedure TDesignBox.SaveAsBitmap(const AFilename: string);
 var
-  aJpeg: TJpegImage;
-  aSelected: TArray<TDesignBoxBaseItem>; // indexes of the items that are selected
-  aItem: TDesignBoxBaseItem;
+  AStream: TMemoryStream;
 begin
-  aSelected := [];
-  for aItem in Items do
-    if aitem.Selected then
-      aSelected := aSelected + [AItem];
-  fItems.DeselectAll;
+  AStream := TMemoryStream.Create;
   try
-    aJpeg := TJpegImage.Create;
-    try
-      aJpeg.assign(fBuffer);
-      aJpeg.CompressionQuality := aCompressionQuality;
-      aJpeg.PixelFormat := TJPEGPixelFormat.jf24Bit;
-      aJpeg.Grayscale := aGrayscale;
-      aJpeg.Compress;
-      aStream.Seek(0, soFromBeginning);
-      aJpeg.SaveToStream(aStream);
-    finally
-      aJpeg.Free;
-    end;
+    SaveAsBitmap(AStream);
+    AStream.Position := 0;
+    AStream.SaveToFile(AFilename);
   finally
-    beginUpdate;
-    try
-      for aitem in ASelected do
-        aitem.selected := True;
-    finally
-      Endupdate;
-    end;
+    AStream.Free;
   end;
+end;
+
+procedure TDesignBox.SaveAsBitmap(const ABitmap: TBitmap);
+begin
+  ABitmap.SetSize(MmToPixels(FPageSizeMM.cx), MmToPixels(FPageSizeMM.cy));
+  FItems.PaintToCanvas(ABitmap.Canvas);
+end;
+
+procedure TDesignBox.SaveAsBitmap(const AStream: TStream);
+var
+  ABmp: TBitmap;
+begin
+  ABmp := TBitmap.Create;
+  try
+    SaveAsBitmap(ABmp);
+    ABmp.SaveToStream(AStream);
+  finally
+    ABmp.Free;
+  end;
+end;
+
+procedure TDesignBox.SaveAsJpeg(const aStream: TStream; const aCompressionQuality: TJPEGQUalityRange = 100; const aGrayscale: boolean = false);
+var
+  ABmp: TBitmap;
+  AJpeg: TJPEGImage;
+begin
+  ABmp := TBitmap.Create;
+  AJpeg := TJPEGImage.Create;
+  try
+    SaveAsBitmap(ABmp);
+    aJpeg.assign(ABmp);
+    aJpeg.CompressionQuality := aCompressionQuality;
+    aJpeg.PixelFormat := TJPEGPixelFormat.jf24Bit;
+    aJpeg.Grayscale := aGrayscale;
+    aJpeg.Compress;
+    aStream.Seek(0, soFromBeginning);
+    aJpeg.SaveToStream(aStream);
+  finally
+    ABmp.Free;
+    AJpeg.Free;
+  end;
+
 end;
 
 procedure TDesignBox.SaveAsPNG(const aStream: TStream; const aTransparent: boolean);
 var
-  aPng: TPngImage;
-  aSelected: TArray<TDesignBoxBaseItem>;
-  aItem : TDesignBoxBaseItem;
+  ABmp: TBitmap;
+  APng: TPngImage;
 begin
-  aSelected := [];
-  for aItem in fItems do
-    if aitem.Selected then
-      aSelected := aSelected + [AItem];
-  fItems.DeselectAll;
+  ABmp := TBitmap.Create;
+  APng := TPngImage.Create;
   try
-    aPng := TPngImage.Create;
-    try
-      aPng.Assign(fBuffer);
-      aPng.SaveToStream(aStream);
-    finally
-      aPng.free;
-    end;
+    ABmp.Canvas.Brush.Color := clWhite;
+    ABmp.SetSize(MmToPixels(FPageSizeMM.cx), MmToPixels(FPageSizeMM.cy));
+    SaveAsBitmap(ABmp);
+    ABmp.Transparent := True;
+    APng.Assign(ABmp);
+    APng.SaveToStream(AStream);
   finally
-    beginUpdate;
-    try
-      for aitem in ASelected do
-        aitem.selected := True;
-    finally
-      Endupdate;
-    end;
+    ABmp.Free;
+    APng.Free;
   end;
 end;
 

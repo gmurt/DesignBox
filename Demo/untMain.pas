@@ -247,18 +247,17 @@ procedure TfrmMain.btnAddGraphicClick(Sender: TObject);
 var
   item1: TDesignBoxItemGraphic;
   item2: TDesignBoxItemGraphic;
+  item3: TDesignBoxItemGraphic;
 begin
   DesignBox1.BeginUpdate;
   try
     item1 := DesignBox1.Canvas.StretchDraw(RectF(20, 20, 40, 40), Image1.Picture.Graphic);
     item2 := DesignBox1.Canvas.Draw(50, 20, Image1.Picture.Graphic);
-    item2 := DesignBox1.Canvas.StretchDraw(RectF(80, 20, 100, 40), Image1.Picture.Graphic);
+    item3 := DesignBox1.Canvas.StretchDraw(RectF(80, 20, 100, 40), Image1.Picture.Graphic);
+    DesignBox1.Items.SelectItems([item1, item2, item3], True);
   finally
-
     DesignBox1.Endupdate;
   end;
-  DesignBox1.items.DeselectAll;
-  DesignBox1.Items.SelectItems([item1, item2]);
 end;
 
 procedure TfrmMain.btnSaveClick(Sender: TObject);

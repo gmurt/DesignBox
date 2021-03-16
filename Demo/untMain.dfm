@@ -3,7 +3,7 @@ object frmMain: TfrmMain
   Top = 0
   Caption = 'frmMain'
   ClientHeight = 660
-  ClientWidth = 796
+  ClientWidth = 832
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -28,7 +28,7 @@ object frmMain: TfrmMain
   object Bevel2: TBevel
     Left = 0
     Top = 633
-    Width = 796
+    Width = 832
     Height = 8
     Align = alBottom
     Shape = bsSpacer
@@ -37,7 +37,7 @@ object frmMain: TfrmMain
     ExplicitWidth = 362
   end
   object Bevel3: TBevel
-    Left = 788
+    Left = 824
     Top = 129
     Width = 8
     Height = 463
@@ -50,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 121
-    Width = 796
+    Width = 832
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -61,7 +61,7 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 129
-    Width = 780
+    Width = 816
     Height = 463
     Align = alClient
     BackgroundColor = clBtnFace
@@ -80,7 +80,7 @@ object frmMain: TfrmMain
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 796
+    Width = 832
     Height = 121
     Align = alTop
     BevelOuter = bvNone
@@ -690,7 +690,7 @@ object frmMain: TfrmMain
   object StatusBar1: TStatusBar
     Left = 0
     Top = 641
-    Width = 796
+    Width = 832
     Height = 19
     Panels = <>
     SimplePanel = True
@@ -698,7 +698,7 @@ object frmMain: TfrmMain
   object Panel2: TPanel
     Left = 0
     Top = 592
-    Width = 796
+    Width = 832
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
