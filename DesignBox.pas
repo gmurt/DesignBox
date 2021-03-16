@@ -10,7 +10,7 @@ interface
 
 uses
   Windows, Messages, System.SysUtils, System.Classes, Vcl.Controls, System.Types, System.Generics.Collections,
-  vcl.Graphics, System.Generics.Defaults, System.Json;
+  vcl.Graphics, System.Generics.Defaults, System.Json, vcl.Imaging.Jpeg;
 
 type
   TDesignBoxMode = (dbmSelect, dbmDraw);
@@ -403,7 +403,6 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    property  Bitmap: TBitmap read fBuffer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -440,6 +439,11 @@ type
     property DrawClass : TDesignBoxBaseItemClass read fDrawClass write fDrawClass;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
 
+    procedure SaveAsJpeg(const aFilename: string; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false); overload;
+    procedure SaveAsJpeg(const aStream: TStream; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false); overload;
+    procedure SaveAsPNG(const aFileName: string; const aTransparent: boolean); overload;
+    procedure SaveAsPNG(const aStream: TStream; const aTransparent: boolean); overload;
+
   published
     property Align;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clSilver;
@@ -464,7 +468,7 @@ function PixelsToMM(AValue: Extended) : single;
 
 implementation
 
-uses System.NetEncoding, PngImage, Jpeg, Math, System.UITypes, Forms, System.RTTI;
+uses System.NetEncoding, PngImage, Math, System.UITypes, Forms, System.RTTI;
 
 const
   C_HIGHLIGHT_COLOR = clHotlight;
@@ -2437,6 +2441,99 @@ procedure TDesignBoxCanvas.SetPen(const Value: TPen);
 begin
   FPen.Assign(Value);
 end;
+
+
+{ Export }
+
+procedure TDesignBox.SaveAsJpeg(const aFilename: string; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false);
+var
+  aFileStream: TFileStream;
+begin
+  aFileStream := TFileStream.Create(aFilename, fmCreate);
+  try
+    SaveAsJpeg(aFileStream, aCompressionQuality, aGrayscale);
+  finally
+    aFileStream.Free;
+  end;
+end;
+
+procedure TDesignBox.SaveAsJpeg(const aStream: TStream; const aCompressionQuality: TJPEGQUalityRange; const aGrayscale: boolean = false);
+var
+  aJpeg: TJpegImage;
+  aSelected: TArray<TDesignBoxBaseItem>; // indexes of the items that are selected
+  aItem: TDesignBoxBaseItem;
+begin
+  aSelected := [];
+  for aItem in Items do
+    if aitem.Selected then
+      aSelected := aSelected + [AItem];
+  fItems.DeselectAll;
+  try
+    aJpeg := TJpegImage.Create;
+    try
+      aJpeg.assign(fBuffer);
+      aJpeg.CompressionQuality := aCompressionQuality;
+      aJpeg.PixelFormat := TJPEGPixelFormat.jf24Bit;
+      aJpeg.Grayscale := aGrayscale;
+      aJpeg.Compress;
+      aStream.Seek(0, soFromBeginning);
+      aJpeg.SaveToStream(aStream);
+    finally
+      aJpeg.Free;
+    end;
+  finally
+    beginUpdate;
+    try
+      for aitem in ASelected do
+        aitem.selected := True;
+    finally
+      Endupdate;
+    end;
+  end;
+end;
+
+procedure TDesignBox.SaveAsPNG(const aStream: TStream; const aTransparent: boolean);
+var
+  aPng: TPngImage;
+  aSelected: TArray<TDesignBoxBaseItem>;
+  aItem : TDesignBoxBaseItem;
+begin
+  aSelected := [];
+  for aItem in fItems do
+    if aitem.Selected then
+      aSelected := aSelected + [AItem];
+  fItems.DeselectAll;
+  try
+    aPng := TPngImage.Create;
+    try
+      aPng.Assign(fBuffer);
+      aPng.SaveToStream(aStream);
+    finally
+      aPng.free;
+    end;
+  finally
+    beginUpdate;
+    try
+      for aitem in ASelected do
+        aitem.selected := True;
+    finally
+      Endupdate;
+    end;
+  end;
+end;
+
+procedure TDesignBox.SaveAsPNG(const aFilename: string; const aTransparent: boolean);
+var
+  aFileStream: TFileStream;
+begin
+  aFileStream := TFileStream.Create(aFilename, fmCreate);
+  try
+    SaveAsPNG(aFileStream, aTransparent);
+  finally
+    aFileStream.free;
+  end;
+end;
+
 
 initialization
   RegisterClass(TDesignBoxItemText);
