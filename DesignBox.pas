@@ -2389,7 +2389,6 @@ begin
     if Supports(AItem, IBrushObject, AIntf) then
       AIntf.Brush.Assign(FBrush);
   end;
-  FDesignBox.Redraw;
 end;
 
 procedure TDesignBoxCanvas.OnFontChanged(Sender: TObject);
@@ -2402,7 +2401,6 @@ begin
     if Supports(AItem, IFontObject, AIntf) then
       AIntf.Font.Assign(FFont);
   end;
-  FDesignBox.Redraw;
 end;
 
 procedure TDesignBoxCanvas.OnPenChanged(Sender: TObject);
@@ -2415,7 +2413,6 @@ begin
     if Supports(AItem, IPenObject, AIntf) then
       AIntf.Pen.Assign(FPen);
   end;
-  FDesignBox.Redraw;
 end;
 
 procedure TDesignBoxCanvas.SetBrush(const Value: TBrush);
