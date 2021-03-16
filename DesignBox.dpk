@@ -33,7 +33,6 @@ requires
   rtl;
 
 contains
-  DesignBox in 'DesignBox.pas',
-  DesignBoxExport in 'D:\Projects\SilverFox\SF-Tests\Label Workshop\1\DesignBoxExport.pas';
+  DesignBox in 'DesignBox.pas';
 
 end.

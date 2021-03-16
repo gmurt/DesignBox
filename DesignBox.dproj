@@ -122,7 +122,6 @@
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="DesignBox.pas"/>
-        <DCCReference Include="D:\Projects\SilverFox\SF-Tests\Label Workshop\1\DesignBoxExport.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
