@@ -2524,7 +2524,10 @@ begin
     SaveAsBitmap(ABmp);
     aJpeg.assign(ABmp);
     aJpeg.CompressionQuality := aCompressionQuality;
-    aJpeg.PixelFormat := TJPEGPixelFormat.jf24Bit;
+    case aGrayScale of
+      True: aJpeg.PixelFormat := jf8Bit; // grayscale JPEGs only need 8-bit
+      False: aJpeg.PixelFormat := jf24bit;
+    end;
     aJpeg.Grayscale := aGrayscale;
     aJpeg.Compress;
     aStream.Seek(0, soFromBeginning);
