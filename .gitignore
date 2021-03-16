@@ -69,3 +69,4 @@ __recovery/
 modules/
 Demo/Win32/Debug/data.json
 *.skincfg
+Demo/DesignBoxDemo.res
