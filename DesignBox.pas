@@ -373,7 +373,7 @@ type
     FOnChange: TNotifyEvent;
     FGridOptions: TDesignBoxGridOptions;
     FRulerOptions: TDesignBoxRulerOptions;
-
+    FUpdateCount: integer;
     function GetSelectedItems: TDesignBoxItemList;
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
@@ -398,7 +398,9 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+    procedure BeginUpdate;
     procedure Clear;
+    procedure Endupdate;
     procedure SaveToStream(AStream: TStream);
     procedure LoadFromStream(AStream: TStream);
     procedure LoadFromJson(AJsonData: string);
@@ -410,7 +412,6 @@ type
     procedure SendBackwards;
     procedure SetPageSize(AWidthMM, AHeightMM: integer); overload;
     procedure SetPageSize(APageSize: TSize); overload;
-    property Canvas: TDesignBoxCanvas read FCanvas;
     //property Brush: TBrush read FBrush write SetBrush;
     //property Font: TFont read FFont write SetFont;
     //property Pen: TPen read FPen write SetPen;
@@ -422,6 +423,7 @@ type
     function CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
 
+    property Canvas: TDesignBoxCanvas read FCanvas;
     property Items: TDesignBoxItemList read FItems;
     property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
@@ -527,6 +529,11 @@ begin
 
 end;
 
+procedure TDesignBox.BeginUpdate;
+begin
+  Inc(FUpdateCount);
+end;
+
 procedure TDesignBox.BringForwards;
 var
   AItem: TDesignBoxBaseItem;
@@ -572,7 +579,6 @@ end;
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
-
   FUpdating := True;
   FCanvas := TDesignBoxCanvas.Create(Self);
   FBuffer := TBitmap.Create;
@@ -593,6 +599,7 @@ begin
   FMode := dbmSelect;
   FUpdating := False;
   Redraw;
+  FUpdateCount := 0;
 end;
 
 destructor TDesignBox.Destroy;
@@ -875,6 +882,16 @@ begin
   end;
 end;
 
+procedure TDesignBox.Endupdate;
+begin
+  if FUpdateCount > 0 then
+  begin
+    Dec(FUpdateCount);
+    if FUpdateCount = 0 then
+      Redraw;
+  end;
+end;
+
 procedure TDesignBox.DrawGrid(ACanvas: TCanvas);
 var
   x, y: single;
@@ -972,6 +989,8 @@ procedure TDesignBox.Redraw;
 var
   AItem: TDesignBoxBaseItem;
 begin
+  if FUpdateCount > 0 then
+    Exit;
   ResizeCanvas;
   FBuffer.Canvas.Brush.Color := PageColor;
   FBuffer.Canvas.Brush.Style := bsClear;
