@@ -316,6 +316,7 @@ type
   TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid,
     ialVertCenters, ialHorzCenters);
 
+
   TDesignBoxCanvas = class
   private
     FTempCanvas: TBitmap;
@@ -402,6 +403,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
+    property  Bitmap: TBitmap read fBuffer;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -699,6 +701,8 @@ begin
       PageHeightMM := TJsonNumber(AJson.values['pageHeightMM']).asInt;
     if assigned(AJson.Values['backgroundColor']) then
       fBackgroundColor := StringToColor(AJson.values['backgroundColor'].value);
+    if assigned(AJson.Values['pageColor']) then
+      fPageColor := StringToColor(AJson.values['pageColor'].value);
     FItems.LoadFromJson(AJson);
   finally
     EndUpdate;
@@ -1098,6 +1102,7 @@ begin
     AJson.AddPair('pageWidthMM', TJsonNumber.Create(PageWidthMM));
     AJson.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
     AJson.AddPair('backgroundColor', ColorToString(FBackgroundColor));
+    AJson.AddPair('pageColor', ColorToString(fPageColor));
     FItems.SaveToJson(AJson);
     AStringStream := TStringStream.Create(AJson.ToJSON);
     try
