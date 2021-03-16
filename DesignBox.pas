@@ -419,8 +419,8 @@ type
     procedure Undo;
     procedure Redo;
     procedure SaveSnapShot(aForce: boolean);
-    function CanUndo : boolean;
-    function CanRedo : boolean;
+    function  CanUndo : boolean;
+    function  CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
 
     property Canvas: TDesignBoxCanvas read FCanvas;
@@ -674,8 +674,10 @@ procedure TDesignBox.LoadFromJson(AJsonData: string);
 var
   AJson: TJSONObject;
 begin
-  AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
+  AJson := nil;
+  BeginUpdate;
   try
+    AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
     fRulerOptions.LoadFromJsonObject(AJson);
     if assigned(AJson.Values['pageWidthMM']) then
       PageWidthMM := TJsonNumber(AJson.values['pageWidthMM']).asInt;
@@ -684,11 +686,11 @@ begin
     if assigned(AJson.Values['backgroundColor']) then
       fBackgroundColor := StringToColor(AJson.values['backgroundColor'].value);
     FItems.LoadFromJson(AJson);
-    Redraw;
+  finally
+    EndUpdate;
+    AJson.Free;
     if Assigned(FOnChange) then
       FOnChange(Self);
-  finally
-    AJson.Free;
   end;
 end;
 
@@ -888,7 +890,10 @@ begin
   begin
     Dec(FUpdateCount);
     if FUpdateCount = 0 then
+    begin
       Redraw;
+      RecordSnapshot;
+    end;
   end;
 end;
 
@@ -1039,6 +1044,9 @@ end;
 
 procedure TDesignBox.SaveSnapShot(aForce: boolean);
 begin
+
+  if fUpdateCount > 0 then EXIT;
+
   fUndoList.SaveSnapshot(aForce);
 end;
 
@@ -1499,7 +1507,6 @@ begin
   Add(result);
   FDesignBox.ReDraw;
   FDesignBox.RecordSnapshot;
-
 end;
 
 constructor TDesignBoxItemList.Create(ADesignBox: TDesignBox);
