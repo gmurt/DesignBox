@@ -49,6 +49,7 @@ type
     FDesignBox: TDesignBox;
     FChanges: TStrings;
     FChangesBookmark: integer;
+    function GetCount: integer;
     function GetCanRedo: Boolean;
     function GetCanUndo: Boolean;
     function GetCurrentSnapshot: string;
@@ -58,6 +59,7 @@ type
     destructor Destroy; override;
     procedure Undo;
     procedure Redo;
+    property Count: integer read GetCount;
     property CanUndo: Boolean read GetCanUndo;
     property CanRedo: Boolean read GetCanRedo;
   end;
@@ -332,6 +334,7 @@ type
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
+
     function TextExtent(const AText: string): TSizeF;
     function TextWidth(const AText: string): single;
     function TextHeight(const AText: string): single;
@@ -346,10 +349,12 @@ type
     function Ellipse(ABoundsMm: TRectF): TDesignBoxItemEllipse; overload;
     function Ellipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemEllipse; overload;
 
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
     property Brush: TBrush read FBrush write SetBrush;
     property Font: TFont read FFont write SetFont;
     property Pen: TPen read FPen write SetPen;
-
   end;
 
 
@@ -366,7 +371,6 @@ type
     FOnSelectItem: TDesignBoxSelectItemEvent;
     FBackgroundColor: TColor;
     FPageColor: TColor;
-    FUpdating: Boolean;
     FPageOffset: TPoint;
     FPageSizeMM: TSize;
     FUndoList: TDesignUndoList;
@@ -579,7 +583,6 @@ end;
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
-  FUpdating := True;
   FCanvas := TDesignBoxCanvas.Create(Self);
   FBuffer := TBitmap.Create;
   FItems := TDesignBoxItemList.Create(Self);
@@ -597,7 +600,6 @@ begin
   ResizeCanvas;
 
   FMode := dbmSelect;
-  FUpdating := False;
   Redraw;
   FUpdateCount := 0;
 end;
@@ -978,7 +980,7 @@ end;
 
 procedure TDesignBox.RecordSnapshot;
 begin
-  if FUpdating then
+  if FUpdateCount > 0 then
     Exit;
   fUndoList.SaveSnapshot(False);
   if Assigned(FOnChange) then
@@ -1188,6 +1190,7 @@ procedure TDesignBox.Undo;
 begin
   fUndoList.Undo;
 end;
+
 
 procedure TDesignBox.WMEraseBackground(var message: TMessage);
 begin
@@ -1566,7 +1569,7 @@ var
   AItem: TDesignBoxBaseItem;
   AItemClass : TDesignBoxBaseItemClass;
 begin
-  FDesignBox.FUpdating := True;
+  FDesignBox.BeginUpdate;
   try
     Clear;
     AItems := AJson.Values['items'] as TJSONArray;
@@ -1585,7 +1588,7 @@ begin
       end;
     end;
   finally
-    FDesignBox.FUpdating := False;
+    FDesignBox.Endupdate;
   end;
 end;
 
@@ -1912,6 +1915,11 @@ begin
   Result := FChangesBookmark > 1;
 end;
 
+function TDesignUndoList.GetCount: integer;
+begin
+  Result := FChanges.Count;
+end;
+
 function TDesignUndoList.GetCurrentSnapshot: string;
 begin
   Result := '';
@@ -1952,7 +1960,7 @@ procedure TDesignUndoList.SaveSnapshot(AForce: Boolean);
 var
   AStream: TStringStream;
 begin
-  if (FDesignBox.FUpdating) and (not AForce) then
+  if (FDesignBox.FUpdateCount > 0) and (not AForce) then
     Exit;
 
   while FChanges.Count > FChangesBookmark do
@@ -2220,38 +2228,57 @@ end;
 function TDesignBoxCanvas.TextOut(ALeftMM, ATopMM: single;
   AText: string): TDesignBoxItemText;
 begin
-  if Trim(AText) = ''  then
-    AText := '<empty>';
-  Result := TDesignBoxItemText.Create(FDesignBox);
-  Result.LeftMM := ALeftMM;
-  Result.TopMM := ATopMM;
-  Result.Text := AText;
-  Result.Brush.Assign(FBrush);
-  Result.Font.Assign(FFont);
-  FDesignBox.Items.Add(Result);
-  FDesignBox.Redraw;
-  FDesignBox.RecordSnapshot;
+  BeginUpdate;
+  try
+    if Trim(AText) = ''  then
+      AText := '<empty>';
+    Result := TDesignBoxItemText.Create(FDesignBox);
+    Result.LeftMM := ALeftMM;
+    Result.TopMM := ATopMM;
+    Result.Text := AText;
+    Result.Brush.Assign(FBrush);
+    Result.Font.Assign(FFont);
+    FDesignBox.Items.Add(Result);
+    FDesignBox.Redraw;
+  finally
+    EndUpdate;
+  end;
 end;
 
 function TDesignBoxCanvas.Draw(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
-  Result := StretchDraw(RectF(ALeftMM,
-                        ATopMM,
-                        ALeftMM + PixelsToMM(AGraphic.Width),
-                        ATopMM + PixelsToMM(AGraphic.Height)),
-                        AGraphic);
+  BeginUpdate;
+  try
+    Result := StretchDraw(RectF(ALeftMM,
+                          ATopMM,
+                          ALeftMM + PixelsToMM(AGraphic.Width),
+                          ATopMM + PixelsToMM(AGraphic.Height)),
+                          AGraphic);
+  finally
+    EndUpdate;
+  end;
 end;
 
 function TDesignBoxCanvas.StretchDraw(ARect: TRectF; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
-  Result := TDesignBoxItemGraphic.Create(FDesignBox);
-  Result.Graphic.Assign(AGraphic);
-  FDesignBox.Items.Add(Result, ARect);
+  BeginUpdate;
+  try
+    Result := TDesignBoxItemGraphic.Create(FDesignBox);
+    Result.Graphic.Assign(AGraphic);
+    FDesignBox.Items.Add(Result, ARect);
+  finally
+    EndUpdate;
+  end;
 end;
 
 function TDesignBoxCanvas.Ellipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemEllipse;
 begin
   Result := Ellipse(ALeftMM, ATopMM, ARightMM, ABottomMM);
+end;
+
+procedure TDesignBoxCanvas.EndUpdate;
+begin
+  FDesignBox.Endupdate;
 end;
 
 function TDesignBoxCanvas.Ellipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;
@@ -2274,8 +2301,18 @@ end;
 
 function TDesignBoxCanvas.Rectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle;
 begin
-  Result := FDesignBox.Items.Add(TDesignBoxItemRectangle, ABoundsMm) as TDesignBoxItemRectangle;
-  Result.RoundnessMm := ARoundnessMm;
+  BeginUpdate;
+  try
+    Result := FDesignBox.Items.Add(TDesignBoxItemRectangle, ABoundsMm) as TDesignBoxItemRectangle;
+    Result.RoundnessMm := ARoundnessMm;
+  finally
+    EndUpdate;
+  end;
+end;
+
+procedure TDesignBoxCanvas.BeginUpdate;
+begin
+  FDesignBox.BeginUpdate;
 end;
 
 constructor TDesignBoxCanvas.Create(ADesignBox: TDesignBox);

@@ -405,12 +405,17 @@ begin
   inherited;
   UpdateActionStates;
   //
-  textSize := DesignBox1.Canvas.MeasureText(C_DESIGNBOX);
-  textItem := DesignBox1.Canvas.TextOut(DesignBox1.PageWidthMM - textSize.Width - 1, DesignBox1.PageHeightMM - textSize.Height - 1, C_DESIGNBOX);
-  textItem.Font.Color := clGrayText;
-  textItem.Pen.Style := psClear;
-  textItem.Brush.Style := bsClear;
-  textItem.options := []; // can't select, move, size or delete
+  DesignBox1.BeginUpdate;
+  try
+    textSize := DesignBox1.Canvas.MeasureText(C_DESIGNBOX);
+    textItem := DesignBox1.Canvas.TextOut(DesignBox1.PageWidthMM - textSize.Width - 1, DesignBox1.PageHeightMM - textSize.Height - 1, C_DESIGNBOX);
+    textItem.Font.Color := clGrayText;
+    textItem.Pen.Style := psClear;
+    textItem.Brush.Style := bsClear;
+    textItem.options := []; // can't select, move, size or delete
+  finally
+    DesignBox1.EndUpdate;
+  end;
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
