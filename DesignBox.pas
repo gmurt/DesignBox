@@ -256,12 +256,8 @@ type
     procedure DeselectAll;
     procedure SelectAll;
     procedure SelectItems(AItems: array of TDesignBoxBaseItem);
+    property DesignBox: TDesignBox read fDesignBox;
 
-    // deprecated...
-    function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic; deprecated;
-    function AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText; deprecated;
-    function AddRectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle; deprecated;
-    function AddEllipse(ABoundsMm: TRectF): TDesignBoxItemEllipse; deprecated;
 
   end;
 
@@ -430,8 +426,6 @@ type
     property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
 
-    // deprecated...
-    function MeasureText(const aText: string): TSizeF; deprecated;
   published
     property Align;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clSilver;
@@ -689,11 +683,6 @@ begin
   finally
     AJson.Free;
   end;
-end;
-
-function TDesignBox.MeasureText(const aText: string): TSizeF;
-begin
-  Result := FCanvas.MeasureText(AText);
 end;
 
 procedure TDesignBox.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -1453,33 +1442,6 @@ end;
 
 { TDesignBoxItemList }
 
-function TDesignBoxItemList.AddRectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle;
-begin
-  Result := FDesignBox.Canvas.Rectangle(ABoundsMm, ARoundnessMm);
-end;
-
-function TDesignBoxItemList.AddEllipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;
-begin
-  Result := FDesignBox.Canvas.Ellipse(ABoundsMm);
-end;
-
-function TDesignBoxItemList.AddText(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
-begin
-  Result := FDesignBox.Canvas.TextOut(ALeftMM, ATopMM, AText);
-{
-  if Trim(AText) = ''  then
-    AText := '<empty>';
-  Result := TDesignBoxItemText.Create(FDesignBox);
-  Result.LeftMM := ALeftMM;
-  Result.TopMM := ATopMM;
-  Result.Text := AText;
-  Result.Brush.Assign(FDesignBox.Brush);
-  Result.Font.Assign(FDesignBox.Font);
-  Add(Result);
-  FDesignBox.Redraw;
-  FDesignBox.RecordSnapshot;}
-end;
-
 function TDesignBoxItemList.BoundsRect: TRect;
 var
   AItem: TDesignBoxBaseItem;
@@ -1519,15 +1481,6 @@ begin
   FDesignBox.ReDraw;
   FDesignBox.RecordSnapshot;
 
-end;
-
-function TDesignBoxItemList.AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
-begin
-  Result := FDesignBox.Canvas.Draw(ALeftMM, ATopMM, AGraphic);
-
-  {Result := TDesignBoxItemGraphic.Create(FDesignBox);
-  Result.Graphic.Assign(AGraphic);
-  Add(Result, RectF(ALeftMM, ATopMM, 0, 0));}
 end;
 
 constructor TDesignBoxItemList.Create(ADesignBox: TDesignBox);
