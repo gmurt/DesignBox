@@ -85,8 +85,6 @@ object frmMain: TfrmMain
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 2
-    ExplicitWidth = 856
     object Image1: TImage
       Left = 834
       Top = 9
@@ -554,7 +552,7 @@ object frmMain: TfrmMain
       Top = 19
       Width = 83
       Height = 25
-      Caption = 'Add Image'
+      Caption = 'Add Images'
       TabOrder = 1
       OnClick = btnAddGraphicClick
     end
@@ -695,7 +693,6 @@ object frmMain: TfrmMain
     Height = 19
     Panels = <>
     SimplePanel = True
-    ExplicitWidth = 850
   end
   object Panel2: TPanel
     Left = 0
@@ -706,7 +703,6 @@ object frmMain: TfrmMain
     BevelOuter = bvNone
     PopupMenu = alignPopup
     TabOrder = 2
-    ExplicitWidth = 850
     object Label1: TLabel
       Left = 564
       Top = 14
@@ -817,6 +813,39 @@ object frmMain: TfrmMain
     OnPopup = PopupMenu1Popup
     Left = 608
     Top = 464
+    object Al1: TMenuItem
+      Caption = 'Align...'
+      object AlignLeft2: TMenuItem
+        Action = actAlignleft
+      end
+      object AlignTop2: TMenuItem
+        Action = actAlignTop
+      end
+      object AlignRight2: TMenuItem
+        Action = actAlignRight
+      end
+      object AlignBottom2: TMenuItem
+        Action = actAlignBottom
+      end
+      object N5: TMenuItem
+        Caption = '-'
+      end
+      object Aligntogrid2: TMenuItem
+        Action = actAlignToGrid
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object AlignHorzCenters2: TMenuItem
+        Action = actAlignHorzCenter
+      end
+      object AlignVertCenters2: TMenuItem
+        Action = actAlignVertCenter
+      end
+    end
+    object N3: TMenuItem
+      Caption = '-'
+    end
     object BringToFront1: TMenuItem
       Action = actBringToFront
     end
@@ -894,13 +923,25 @@ object frmMain: TfrmMain
     object actAlignToGrid: TAction
       Tag = 4
       Category = 'Alignment'
-      Caption = 'Align to grid'
+      Caption = 'Align Objects to Grid'
       OnExecute = actAlignleftExecute
     end
     object actSelectAll: TAction
       Caption = 'Select All'
       ShortCut = 16449
       OnExecute = actSelectAllExecute
+    end
+    object actAlignHorzCenter: TAction
+      Tag = 5
+      Category = 'Alignment'
+      Caption = 'Align Horz Centers'
+      OnExecute = actAlignHorzCenterExecute
+    end
+    object actAlignVertCenter: TAction
+      Tag = 6
+      Category = 'Alignment'
+      Caption = 'Align Vert Centers'
+      OnExecute = actAlignVertCenterExecute
     end
   end
   object FontDialog1: TFontDialog
@@ -942,6 +983,15 @@ object frmMain: TfrmMain
     end
     object Aligntogrid1: TMenuItem
       Action = actAlignToGrid
+    end
+    object N4: TMenuItem
+      Caption = '-'
+    end
+    object AlignHorzCenters1: TMenuItem
+      Action = actAlignHorzCenter
+    end
+    object AlignVertCenters1: TMenuItem
+      Action = actAlignVertCenter
     end
   end
 end

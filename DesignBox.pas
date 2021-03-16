@@ -107,8 +107,11 @@ type
     procedure SetWidthMM(const Value: Extended);
     function GetHeightMm: Extended;
     procedure SetHeightMm(const Value: Extended);
+    function GetCenterPtMm: TPointF;
+    procedure SetCenterPtMm(const Value: TPointF);
   protected
     function RectPixels: TRect; virtual;
+    function RectMM: TRectF;
     function BoundsRect: TRect;
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
     procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
@@ -126,6 +129,7 @@ type
     property TopMM: Extended read GetTopMM write SetTopMM;
     property WidthMM: Extended read GetWidthMM write SetWidthMM;
     property HeightMM: Extended read GetHeightMm write SetHeightMm;
+    property CenterPtMm: TPointF read GetCenterPtMm write SetCenterPtMm;
     property Options: TItemOptions read fOptions write SetOptions;
   end;
 
@@ -251,6 +255,7 @@ type
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
     procedure SelectAll;
+    procedure SelectItems(AItems: array of TDesignBoxBaseItem);
 
     // deprecated...
     function AddGraphic(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic; deprecated;
@@ -310,7 +315,8 @@ type
     property SnapToGrid: Boolean read FSnapToGrid write SetSnapToGrid default False;
   end;
 
-  TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid);
+  TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid,
+    ialVertCenters, ialHorzCenters);
 
   TDesignBoxCanvas = class
   private
@@ -337,9 +343,12 @@ type
 
     function TextOut(ALeftMM, ATopMM: single; AText: string): TDesignBoxItemText;
     function Draw(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
+    function StretchDraw(ARect: TRectF; AGraphic: TGraphic): TDesignBoxItemGraphic;
+
     function Rectangle(ALeftMM, ATopMM, ARightMM, ABottomMM: single; const ARoundnessMm: single = 0): TDesignBoxItemRectangle; overload;
     function Rectangle(ABoundsMm: TRectF; const ARoundnessMm: single = 0): TDesignBoxItemRectangle; overload;
-    function Ellipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;
+    function Ellipse(ABoundsMm: TRectF): TDesignBoxItemEllipse; overload;
+    function Ellipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemEllipse; overload;
 
     property Brush: TBrush read FBrush write SetBrush;
     property Font: TFont read FFont write SetFont;
@@ -510,11 +519,13 @@ begin
   for AItem in FSelectedItems do
   begin
     case aAlignment of
-      ialLeftSides:   AItem.LeftMM := PixelsToMM(ASelectedRect.Left);
-      ialTopSides:    AItem.TopMM  := PixelsToMM(ASelectedRect.Top);
-      ialRightSides:  AItem.LeftMM := PixelsToMM(ASelectedRect.Right) - aItem.WidthMM;
-      ialBottomSides: Aitem.TopMM  := PixelsToMM(ASelectedRect.Bottom) - AItem.HeightMM;
-      ialToGrid: AItem.SnapToGrid;
+      ialLeftSides    : AItem.LeftMM := PixelsToMM(ASelectedRect.Left);
+      ialTopSides     : AItem.TopMM  := PixelsToMM(ASelectedRect.Top);
+      ialRightSides   : AItem.LeftMM := PixelsToMM(ASelectedRect.Right) - aItem.WidthMM;
+      ialBottomSides  : Aitem.TopMM  := PixelsToMM(ASelectedRect.Bottom) - AItem.HeightMM;
+      ialToGrid       : AItem.SnapToGrid;
+      ialVertCenters  : AItem.CenterPtMm  := PointF(AItem.CenterPtMm.X, PixelsToMM(ASelectedRect.CenterPoint.Y));
+      ialHorzCenters  : AItem.CenterPtMm  := PointF(PixelsToMM(ASelectedRect.CenterPoint.X), AItem.CenterPtMm.Y);
     end;
   end;
 
@@ -1285,6 +1296,11 @@ begin
   FDrawOffset := Point(0,0);
 end;
 
+function TDesignBoxBaseItem.GetCenterPtMm: TPointF;
+begin
+  Result := RectMM.CenterPoint;
+end;
+
 function TDesignBoxBaseItem.GetHeightMm: Extended;
 begin
   Result := PixelsToMM(FHeight);
@@ -1317,6 +1333,15 @@ begin
                  FPosition.Y,
                  FPosition.X + FWidth,
                  FPosition.Y + FHeight);
+end;
+
+function TDesignBoxBaseItem.RectMM: TRectF;
+begin
+  Result := RectPixels;
+  Result.Left := PixelsToMM(Result.Left);
+  Result.Top := PixelsToMM(Result.Top);
+  Result.Right := PixelsToMM(Result.Right);
+  Result.Bottom := PixelsToMM(Result.Bottom);
 end;
 
 function TDesignBoxBaseItem.RectPixels: TRect;
@@ -1373,6 +1398,13 @@ begin
   for aOption in fOptions do
     jOptions.Add(TRttiEnumerationType.GetName(aOption));
   AJson.AddPair('options', jOptions);
+end;
+
+procedure TDesignBoxBaseItem.SetCenterPtMm(const Value: TPointF);
+begin
+  LeftMM := Value.X - (WidthMM / 2);
+  TopMM := Value.Y - (HeightMM / 2);
+  Changed;
 end;
 
 procedure TDesignBoxBaseItem.SetHeightMm(const Value: Extended);
@@ -1604,6 +1636,15 @@ begin
       AItem.Selected := TRUE;
 end;
 
+procedure TDesignBoxItemList.SelectItems(AItems: array of TDesignBoxBaseItem);
+var
+  AItem: TDesignBoxBaseItem;
+begin
+  for AItem in AItems do
+    if canSelect in AItem.Options then
+      AItem.Selected := True;
+end;
+
 { TDesignBoxItemGraphic }
 
 constructor TDesignBoxItemGraphic.Create(ADesignBox: TDesignBox);
@@ -1658,9 +1699,10 @@ begin
   inherited;
   ARect := RectPixels;
   // calculate width/height...
-  FWidth := FGraphic.Width;
-  FHeight := FGraphic.Height;
-  ACanvas.Draw(ARect.Left, ARect.Top, FGraphic.Graphic);
+  //FWidth := FGraphic.Width;
+  //FHeight := FGraphic.Height;
+
+  ACanvas.StretchDraw(ARect, FGraphic.Graphic);
 end;
 
 procedure TDesignBoxItemGraphic.SaveToJson(AJson: TJsonObject);
@@ -2214,9 +2256,23 @@ end;
 
 function TDesignBoxCanvas.Draw(ALeftMM, ATopMM: single; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
+  Result := StretchDraw(RectF(ALeftMM,
+                        ATopMM,
+                        ALeftMM + PixelsToMM(AGraphic.Width),
+                        ATopMM + PixelsToMM(AGraphic.Height)),
+                        AGraphic);
+end;
+
+function TDesignBoxCanvas.StretchDraw(ARect: TRectF; AGraphic: TGraphic): TDesignBoxItemGraphic;
+begin
   Result := TDesignBoxItemGraphic.Create(FDesignBox);
   Result.Graphic.Assign(AGraphic);
-  FDesignBox.Items.Add(Result, RectF(ALeftMM, ATopMM, 0, 0));
+  FDesignBox.Items.Add(Result, ARect);
+end;
+
+function TDesignBoxCanvas.Ellipse(ALeftMM, ATopMM, ARightMM, ABottomMM: single): TDesignBoxItemEllipse;
+begin
+  Result := Ellipse(ALeftMM, ATopMM, ARightMM, ABottomMM);
 end;
 
 function TDesignBoxCanvas.Ellipse(ABoundsMm: TRectF): TDesignBoxItemEllipse;

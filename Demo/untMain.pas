@@ -76,6 +76,22 @@ type
     N2: TMenuItem;
     Button5: TButton;
     RadioGroup1: TRadioGroup;
+    Al1: TMenuItem;
+    N3: TMenuItem;
+    AlignLeft2: TMenuItem;
+    AlignTop2: TMenuItem;
+    AlignRight2: TMenuItem;
+    AlignBottom2: TMenuItem;
+    Aligntogrid2: TMenuItem;
+    actAlignHorzCenter: TAction;
+    actAlignVertCenter: TAction;
+    N4: TMenuItem;
+    AlignHorzCenters1: TMenuItem;
+    AlignVertCenters1: TMenuItem;
+    N5: TMenuItem;
+    N6: TMenuItem;
+    AlignHorzCenters2: TMenuItem;
+    AlignVertCenters2: TMenuItem;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -115,6 +131,8 @@ type
     procedure actAlignToGridExecute(Sender: TObject);
     procedure actSelectAllExecute(Sender: TObject);
     procedure RadioGroup1Click(Sender: TObject);
+    procedure actAlignHorzCenterExecute(Sender: TObject);
+    procedure actAlignVertCenterExecute(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -135,6 +153,11 @@ implementation
 
 {$R *.dfm}
 
+procedure TfrmMain.actAlignHorzCenterExecute(Sender: TObject);
+begin
+  DesignBox1.AlignItems(ialHorzCenters);
+end;
+
 procedure TfrmMain.actAlignleftExecute(Sender: TObject);
 begin
   DesignBox1.AlignItems(TItemAlignment(TAction(Sender).tag));
@@ -143,6 +166,11 @@ end;
 procedure TfrmMain.actAlignToGridExecute(Sender: TObject);
 begin
   DesignBox1.AlignItems(TItemAlignment(TAction(Sender).tag));
+end;
+
+procedure TfrmMain.actAlignVertCenterExecute(Sender: TObject);
+begin
+DesignBox1.AlignItems(ialVertCenters);
 end;
 
 procedure TfrmMain.actBringForwardsExecute(Sender: TObject);
@@ -216,11 +244,13 @@ end;
 
 procedure TfrmMain.btnAddGraphicClick(Sender: TObject);
 var
-  item: TDesignBoxItemGraphic;
+  item1: TDesignBoxItemGraphic;
+  item2: TDesignBoxItemGraphic;
 begin
-  item := DesignBox1.Canvas.Draw(20, 20, Image1.Picture.Graphic);
+  item1 := DesignBox1.Canvas.StretchDraw(RectF(20, 20, 40, 40), Image1.Picture.Graphic);
+  item2 := DesignBox1.Canvas.Draw(50, 20, Image1.Picture.Graphic);
   DesignBox1.items.DeselectAll;
-  item.selected := True;
+  DesignBox1.Items.SelectItems([item1, item2]);
 end;
 
 procedure TfrmMain.btnSaveClick(Sender: TObject);
@@ -294,6 +324,8 @@ begin
   item := DesignBox1.Canvas.Rectangle(RectF(20, 20, 40, 40));
   DesignBox1.items.DeselectAll;
   item.selected := True;
+
+
 end;
 
 procedure TfrmMain.btnAddEllipseClick(Sender: TObject);
