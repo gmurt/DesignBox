@@ -16,6 +16,8 @@ type
   TDesignBox = class;
   TDesignBoxBaseItem = class;
 
+  TDesignBoxAfterDrawEvent = reference to procedure(Sender: TObject; aNewItem : TDesignBoxBaseItem; aIndex: integer);  // triggered after MANUALLY drawing an item
+
   IBrushObject = interface
     ['{66B92A59-B773-4DE2-97DF-34CA29245A0E}']
     function GetBrush: TBrush;
@@ -380,6 +382,7 @@ type
     FGridOptions: TDesignBoxGridOptions;
     FRulerOptions: TDesignBoxRulerOptions;
     FUpdateCount: integer;
+    FAfterDrawItem: TDesignBoxAfterDrawEvent;
     function GetSelectedItems: TDesignBoxItemList;
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
@@ -463,6 +466,7 @@ type
     property OnMouseMove;
     property OnMouseUp;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
+    property AfterDrawItem: TDesignBoxAfterDrawEvent read fAfterDrawItem write fAfterDrawItem;
     property OnResize;
   end;
 
@@ -852,7 +856,9 @@ begin
     aNewItem.HeightMM := aRect.Height;
     if aNewItem is TDesignBoxItemText then
       TDesignBoxItemText(aNewItem).Text := format('Item %d', [Succ(fItems.Count)]);
-    fItems.add(aNewItem);
+    var idx := fItems.add(aNewItem);
+    if assigned(AfterDrawItem) then
+      AfterDrawItem(self, aNewItem, idx);
   end;
 
   Redraw;
