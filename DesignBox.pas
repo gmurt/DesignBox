@@ -93,6 +93,7 @@ type
     FSelected: Boolean;
     FDrawOffset: TPoint;
     fOptions : TItemOptions;
+    fVisible: boolean;
     function GetLeftMM: Extended;
     function GetTopMM: Extended;
     procedure Changed;
@@ -106,6 +107,7 @@ type
     procedure SetHeightMm(const Value: Extended);
     function GetCenterPtMm: TPointF;
     procedure SetCenterPtMm(const Value: TPointF);
+    procedure SetVisible(const Value: boolean);
   protected
     function RectPixels: TRect; virtual;
     function RectMM: TRectF;
@@ -128,6 +130,7 @@ type
     property HeightMM: Extended read GetHeightMm write SetHeightMm;
     property CenterPtMm: TPointF read GetCenterPtMm write SetCenterPtMm;
     property Options: TItemOptions read fOptions write SetOptions;
+    property Visible: boolean read fVisible write SetVisible;
   end;
 
   TDesignBoxBaseItemClass = class of TDesignBoxBaseItem;
@@ -478,7 +481,6 @@ const
   C_DPI = 300;
   C_MM_PER_INCH = 25.4;
 
-
 procedure Register;
 begin
   RegisterComponents('Samples', [TDesignBox]);
@@ -740,7 +742,7 @@ begin
 
   if ADeselectOthers then FItems.DeselectAll;
 
-  if (AItem <> nil) and (canSelect in AItem.Options) then
+  if (AItem <> nil) and (canSelect in AItem.Options) and (AItem.Visible) then
   begin
     case (ssShift in Shift) of
       True: AItem.Selected := not AItem.Selected;
@@ -822,7 +824,7 @@ begin
     if (ADragArea.Width > 4) and (ADragArea.Height > 4) then
     for AItem in FItems do
     begin
-      AItem.Selected := AItem.RectsIntersect(ADragArea) and (canSelect in AItem.Options);
+      AItem.Selected := AItem.RectsIntersect(ADragArea) and (canSelect in AItem.Options) and (Aitem.Visible);
     end;
   end
   else
@@ -1044,7 +1046,8 @@ begin
   begin
     for AItem in FItems do
     begin
-      AItem.PaintToCanvas(FBuffer.Canvas);
+      if AItem.Visible then
+        AItem.PaintToCanvas(FBuffer.Canvas);
       if AItem.Selected then
         AItem.DrawSelectedRect(FBuffer.Canvas);
     end;
@@ -1321,6 +1324,7 @@ begin
   inherited Create;
   FDesignBox := ADesignBox;
   FSelected := False;
+  FVisible := TRUE; // if false cannot be selected either
   FOptions := [low(TITemOption)..High(TItemOption)];
 end;
 
@@ -1333,7 +1337,7 @@ procedure TDesignBoxBaseItem.DrawSelectedRect(ACanvas: TCanvas);
 var
   ARect: TRect;
 begin
-  if FSelected then
+  if FSelected and FVisible then
   begin
     ARect := RectPixels;
     InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
@@ -1492,6 +1496,16 @@ begin
   FPosition.Y := MmToPixels(Value)
 end;
 
+procedure TDesignBoxBaseItem.SetVisible(const Value: boolean);
+begin
+  if fVisible <> Value then
+  begin
+    fVisible := Value;
+    if not fVisible then fSelected := false;
+    Changed;
+  end;
+end;
+
 procedure TDesignBoxBaseItem.SetWidthMM(const Value: Extended);
 begin
   FWidth := MmToPixels(Value)
@@ -1640,7 +1654,8 @@ var
 begin
   for AItem in Self do
   begin
-    AItem.PaintToCanvas(ACanvas);
+    if AItem.Visible then
+      AItem.PaintToCanvas(ACanvas);
   end;
 end;
 
@@ -1668,7 +1683,7 @@ begin
   FDesignBox.BeginUpdate;
   try
     for AItem in Self do
-      if canSelect in AItem.Options then
+      if (canSelect in AItem.Options) and (AItem.Visible) then
         AItem.Selected := TRUE;
   finally
     FDesignBox.Endupdate;
@@ -1684,7 +1699,7 @@ begin
     if ADeselectOthers then
       DesignBox.Items.DeselectAll;
     for AItem in AItems do
-      if canSelect in AItem.Options then
+      if (canSelect in AItem.Options) and (Aitem.Visible) then
         AItem.Selected := True;
   finally
     FDesignBox.Endupdate;
