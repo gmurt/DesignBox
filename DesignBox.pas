@@ -509,6 +509,14 @@ begin
   Result := Round(((C_DPI / C_MM_PER_INCH) * AValue) * AScale);
 end;
 
+function MmToPixelsF(AValue: Extended): Extended;
+var
+  AScale: single;
+begin
+  AScale := ScreenDpi / C_DPI;
+  Result := ((C_DPI / C_MM_PER_INCH) * AValue) * AScale;
+end;
+
 function PixelsToMM(AValue: Extended) : single;
 begin
   Result := AValue / (ScreenDpi/ C_MM_PER_INCH);
@@ -778,7 +786,7 @@ var
   ADragOffset: TPoint;
   Xsnap: integer;
   YSnap: integer;
-  AGridPixels: integer;
+  AGridPixels: Extended;
 begin
   inherited;
   X := X - FPageOffset.X;
@@ -802,9 +810,9 @@ begin
     if FGridOptions.SnapToGrid then
     begin
       ASelectRect := SelectedItems.BoundsRect;
-      AGridPixels :=  MmToPixels(FGridOptions.SizeMm);
-      XSnap := (Round(ASelectRect.Left / AGridPixels) * AGridPixels) - ASelectRect.Left;
-      YSnap := (Round(ASelectRect.Top / AGridPixels) * AGridPixels) - ASelectRect.Top;
+      AGridPixels :=  MmToPixelsF(FGridOptions.SizeMm);
+      XSnap := Round((Round(ASelectRect.Left / AGridPixels) * AGridPixels) - ASelectRect.Left);
+      YSnap := Round((Round(ASelectRect.Top / AGridPixels) * AGridPixels) - ASelectRect.Top);
       for AItem in FItems do
       begin
         if AItem.Selected and (canMove in AItem.Options) then
