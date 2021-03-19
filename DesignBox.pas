@@ -345,6 +345,7 @@ type
     procedure OnPenChanged(Sender: TObject);
 
   protected
+    procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -377,7 +378,7 @@ type
   end;
 
 
-  TDesignBox = class(TScrollBox)
+  TDesignBox = class(TScrollingWinControl)
   private
     FMode: TDesignBoxMode;
     fDrawClass : TDesignBoxBaseItemClass;
@@ -395,6 +396,7 @@ type
     FRulerOptions: TDesignBoxRulerOptions;
     FUpdateCount: integer;
     FAfterDrawItem: TDesignBoxAfterDrawEvent;
+    FBorderStyle: TBorderStyle;
     function GetSelectedItems: TDesignBoxItemList;
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
@@ -408,16 +410,24 @@ type
     procedure DrawGrid(ACanvas: TCanvas);
     procedure SetRulerOptions(const Value: TDesignBoxRulerOptions);
     procedure SetPageColor(const Value: TColor);
-    function GetFont: TFont;
-    procedure SetFont(const Value: TFont);
+
+    procedure SetBorderStyle(Value: TBorderStyle);
+    procedure WMNCHitTest(var Message: TWMNCHitTest); message WM_NCHITTEST;
+    procedure CMCtl3DChanged(var Message: TMessage); message CM_CTL3DCHANGED;
+    procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
+
   protected
+
+    procedure CreateParams(var Params: TCreateParams); override;
+    procedure PaintWindow(DC: HDC); override;
+
     procedure Loaded; override;
     procedure Resize; override;
 
     procedure WMHScroll(var Message: TWMHScroll); message WM_HSCROLL;
     procedure WMVScroll(var Message: TWMVScroll); message WM_VSCROLL;
 
-    //procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
+    procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -435,10 +445,6 @@ type
     procedure SendBackwards;
     procedure SetPageSize(AWidthMM, AHeightMM: integer); overload;
     procedure SetPageSize(APageSize: TSize); overload;
-
-    //property Brush: TBrush read FBrush write SetBrush;
-    //property Font: TFont read FFont write SetFont;
-    //property Pen: TPen read FPen write SetPen;
     procedure Redraw;
     procedure Undo;
     procedure Redo;
@@ -447,8 +453,7 @@ type
     function  CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
 
-    property Font : TFont read GetFont write SetFont; // will hide the base TControl.Font implementation?
-
+    property BorderStyle: TBorderStyle read FBorderStyle write SetBorderStyle default bsSingle;
     property Canvas: TDesignBoxCanvas read FCanvas;
     property Items: TDesignBoxItemList read FItems;
     property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
@@ -467,6 +472,7 @@ type
   published
     property Align;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clSilver;
+    property Ctl3D;
     property PageColor : TColor read fPageColor write SetPageColor default clWhite;
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
     property PopupMenu;
@@ -620,9 +626,29 @@ begin
   Redraw;
 end;
 
+procedure TDesignBox.CMCtl3DChanged(var Message: TMessage);
+begin
+  if NewStyleControls and (FBorderStyle = bsSingle) then RecreateWnd;
+  inherited;
+end;
+
+procedure TDesignBox.CMVisibleChanged(var Message: TMessage);
+var
+  I: Integer;
+begin
+  inherited;
+  if not (csDestroying in ComponentState) then
+    for I := 0 to DockClientCount - 1 do
+      DockClients[I].Visible := Visible;
+end;
+
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
+  ControlStyle := [csAcceptsControls, csCaptureMouse, csClickEvents,
+    csSetCaption, csDoubleClicks, csPannable, csGestures];
+  AutoScroll := True;
+
   HorzScrollBar.Tracking := True;
   VertScrollBar.Tracking := True;
   fDrawClass := TDesignBoxItemRectangle; // default
@@ -639,10 +665,11 @@ begin
   FPageSizeMM.Height := 100;
   FBackgroundColor := clSilver;
   FPageColor := clWhite;
-  ResizeCanvas;
+  FBorderStyle := bsSingle;
 
+  DoubleBuffered := True;
   FMode := dbmSelect;
-  Redraw;
+
   FUpdateCount := 0;
 
   FCanvas.Left := 0;
@@ -651,6 +678,22 @@ begin
   FCanvas.Parent := Self;
 end;
 
+
+procedure TDesignBox.CreateParams(var Params: TCreateParams);
+const
+  BorderStyles: array[TBorderStyle] of DWORD = (0, WS_BORDER);
+begin
+  inherited CreateParams(Params);
+  with Params do
+  begin
+    Style := Style or BorderStyles[FBorderStyle];
+    if NewStyleControls and Ctl3D and (FBorderStyle = bsSingle) then
+    begin
+      Style := Style and not WS_BORDER;
+      ExStyle := ExStyle or WS_EX_CLIENTEDGE;
+    end;
+  end;
+end;
 
 destructor TDesignBox.Destroy;
 begin
@@ -663,11 +706,11 @@ begin
   FRulerOptions.Free;
   inherited;
 end;
-
+                    {
 function TDesignBox.GetFont: TFont;
 begin
   result := FCanvas.Font;
-end;
+end;                 }
 
 function TDesignBox.GetPageHeightMM: integer;
 begin
@@ -695,7 +738,9 @@ end;
 procedure TDesignBox.Loaded;
 begin
   inherited;
+  ResizeCanvas;
   SaveSnapShot(True);
+  Redraw;
 end;
 
 procedure TDesignBox.LoadFromFile(AFilename: string);
@@ -723,6 +768,11 @@ begin
   finally
     AStringStream.Free;
   end;
+end;
+
+procedure TDesignBox.PaintWindow(DC: HDC);
+begin
+  //  Do nothing
 end;
 
 procedure TDesignBox.LoadFromJson(AJsonData: string);
@@ -1128,11 +1178,6 @@ procedure TDesignBox.ResizeCanvas;
 begin
   FCanvas.SetSize(MmToPixels(FPageSizeMM.Width)+1,
                   MmToPixels(FPageSizeMM.Height)+1);
-
-  {FCanvas.FBuffer.SetSize(MmToPixels(FPageSizeMM.Width)+1,
-                  MmToPixels(FPageSizeMM.Height)+1);
-  FCanvas.FBuffer.Canvas.Brush.Color := FPageColor;
-  FCanvas.FBuffer.Canvas.FillRect(Rect(0,0,FCanvas.FBuffer.Width, FCanvas.FBuffer.Height));   }
 end;
 
 procedure TDesignBox.SaveSnapShot(aForce: boolean);
@@ -1223,9 +1268,13 @@ begin
   Redraw;
 end;
 
-procedure TDesignBox.SetFont(const Value: TFont);
+procedure TDesignBox.SetBorderStyle(Value: TBorderStyle);
 begin
-  fCanvas.Font.assign(Value);
+  if Value <> FBorderStyle then
+  begin
+    FBorderStyle := Value;
+    RecreateWnd;
+  end;
 end;
 
 procedure TDesignBox.SetGridOptions(const Value: TDesignBoxGridOptions);
@@ -1287,15 +1336,20 @@ begin
 end;
 
 
-{procedure TDesignBox.WMEraseBackground(var message: TMessage);
+procedure TDesignBox.WMEraseBackground(var message: TMessage);
 begin
   message.Result := 1;
-end;}
+end;
 
 procedure TDesignBox.WMHScroll(var Message: TWMHScroll);
 begin
   FCanvas.Invalidate;
   inherited;
+end;
+
+procedure TDesignBox.WMNCHitTest(var Message: TWMNCHitTest);
+begin
+  DefaultHandler(Message);
 end;
 
 procedure TDesignBox.WMVScroll(var Message: TWMVScroll);
@@ -2511,6 +2565,11 @@ begin
   Result := PixelsToMM(FBuffer.Canvas.TextWidth(AText));
 end;
 
+procedure TDesignBoxCanvas.WMEraseBackground(var message: TMessage);
+begin
+  message.Result := 1;
+end;
+
 function TDesignBoxCanvas.TextHeight(const AText: string): single;
 begin
   Result := PixelsToMM(FBuffer.Canvas.TextHeight(AText));
@@ -2581,6 +2640,8 @@ procedure TDesignBoxCanvas.SetSize(w, h: integer);
 var
   ARulerWidth: integer;
 begin
+  //if (FBuffer.Width = w)  and (FBuffer.Height = h) then
+  //  Exit;
   aRulerWidth := FBuffer.Canvas.TextWidth('9999') + 6;
   case FDesignBox.RulerOptions.Visible of
     True: FDesignBox.FPageOffset := Point(aRulerWidth, aRulerWidth); // slightly narrower

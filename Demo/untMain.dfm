@@ -63,19 +63,19 @@ object frmMain: TfrmMain
     Top = 129
     Width = 816
     Height = 463
+    HorzScrollBar.Tracking = True
+    VertScrollBar.Tracking = True
     Align = alClient
     BackgroundColor = clBtnFace
     GridOptions.Visible = True
     PopupMenu = PopupMenu1
+    RulerOptions.Units = 'mm'
     PageWidthMM = 190
     PageHeightMM = 100
     OnChange = DesignBox1Change
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     OnSelectItem = DesignBox1SelectItem
-    ExplicitTop = 87
-    ExplicitWidth = 813
-    ExplicitHeight = 503
   end
   object Panel1: TPanel
     Left = 0

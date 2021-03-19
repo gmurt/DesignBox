@@ -231,7 +231,7 @@ end;
 procedure TfrmMain.btnFontClick(Sender: TObject);
 begin
  if FontDialog1.execute then
-  DesignBox1.Font.Assign(FontDialog1.Font);
+  DesignBox1.Canvas.Font.Assign(FontDialog1.Font);
 end;
 
 procedure TfrmMain.btnAddTextClick(Sender: TObject);
