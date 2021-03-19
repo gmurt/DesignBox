@@ -273,11 +273,15 @@ type
     fVisible: Boolean;
     fRulerHeightPx : integer;
     fRulerWidthPx : integer;
+    fShowUnits: boolean;
+    fUnits: string;
     procedure SetBackgroundColor(const Value: TColor);
     procedure SetForegroundColor(const Value: TColor);
     procedure SetVisible(const Value: boolean);
     function GetHeightPx: integer;
     function GetWidthPx: integer;
+    procedure SetShowUnits(const Value: boolean);
+    procedure SetUnits(const Value: string);
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     procedure Assign(Source: TPersistent); override;
@@ -289,6 +293,8 @@ type
     property Visible: boolean read fVisible write SetVisible default true;
     property WidthPx : integer read GetWidthPx;
     property HeightPx : integer read GetHeightPx;
+    property ShowUnits: boolean read fShowUnits write SetShowUnits default false;
+    property Units: string read fUnits write SetUnits;
   end;
 
   TDesignBoxGridOptions = class(TPersistent)
@@ -870,6 +876,7 @@ var
   AMm: integer;
   AMarkSize: integer;
   tz : TSize;
+  RectOrigin: TRect;
 const
   C_BIG_MARK = 10;
   C_LITTLE_MARK = 5;
@@ -923,6 +930,15 @@ begin
     end;
     Inc(AMm);
   end;
+
+  // Draw the Units (or whatever ?)
+  if fRulerOptions.ShowUnits then
+  begin
+    rectOrigin := Rect(0, 0, fPageOffset.X, fPageOffset.Y);
+    tz := ACanvas.TextExtent(fRulerOptions.Units);
+    ACanvas.TextOut((rectOrigin.Width div 2) - (tz.Width div 2), (rectOrigin.Height div 2) - (tz.Height div 2), fRulerOptions.Units);
+  end;
+
 end;
 
 procedure TDesignBox.Endupdate;
@@ -1448,6 +1464,8 @@ begin
       end;
     end;
   end;
+  if assigned(aJson.Values['visible']) then
+    Visible := TJsonBool(aJson.Values['visible']).AsBoolean;
 end;
 
 procedure TDesignBoxBaseItem.SaveToJson(AJson: TJsonObject);
@@ -1464,6 +1482,7 @@ begin
   for aOption in fOptions do
     jOptions.Add(TRttiEnumerationType.GetName(aOption));
   AJson.AddPair('options', jOptions);
+  AJson.AddPair('visible', TJsonBool.Create(Visible));
 end;
 
 procedure TDesignBoxBaseItem.SetCenterPtMm(const Value: TPointF);
@@ -2247,7 +2266,9 @@ begin
   fBackgroundColor := clWhite;
   fForegroundColor := clBlack;
   fVisible := true;
-end;
+  fShowUnits := false; // backward compatibility
+  fUnits := 'mm'; // changing this would mean changing the designbox as a whole to not use mm
+ end;
 
 function TDesignBoxRulerOptions.GetHeightPx: integer;
 begin
@@ -2267,6 +2288,10 @@ begin
     fForegroundColor := StringToColor(AJson.Values['rulerForegroundColor'].value);
   if assigned(AJson.Values['rulerBackgroundColor']) then
     fBackgroundColor := StringToColor(AJson.Values['rulerBackgroundColor'].value);
+  if assigned(AJson.Values['rulerShowUnits']) then
+    fShowUnits := TJsonBool(aJson.Values['rulerShowUnits']).AsBoolean;
+  if assigned(AJson.Values['rulerUnits']) then
+    fUnits := AJson.Values['units'].value;
 end;
 
 procedure TDesignBoxRulerOptions.SaveToJsonObject(AJson: TJsonObject);
@@ -2290,6 +2315,24 @@ begin
   if fForegroundColor <> Value then
   begin
     fForegroundColor := Value;
+    fDesignBox.Invalidate;
+  end;
+end;
+
+procedure TDesignBoxRulerOptions.SetShowUnits(const Value: boolean);
+begin
+  if fShowUnits <> Value then
+  begin
+    fShowUnits := Value;
+    fDesignBox.Invalidate;
+  end;
+end;
+
+procedure TDesignBoxRulerOptions.SetUnits(const Value: string);
+begin
+  if fUnits <> Value then
+  begin
+    fUnits := Value;
     fDesignBox.Invalidate;
   end;
 end;
