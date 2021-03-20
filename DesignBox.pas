@@ -264,6 +264,8 @@ type
 
   end;
 
+
+
   TDesignBoxRulerOptions = class(TPersistent)
   private
     fDesignBox : TDesignBox;
@@ -296,6 +298,8 @@ type
     property Units: string read fUnits write SetUnits;
   end;
 
+  TDesignBoxGridStyle = (dbgsHorz, dbgsVert, dbgsBoth);
+
   TDesignBoxGridOptions = class(TPersistent)
   private
     FDesignBox: TDesignBox;
@@ -303,10 +307,12 @@ type
     FSizeMm: integer;
     FColor: TColor;
     FSnapToGrid: boolean;
-    procedure SetVisible(const Value: Boolean);
+    fStyle: TDesignBoxGridStyle;
     procedure SetSizeMm(const Value: integer);
     procedure SetColor(const Value: TColor);
     procedure SetSnapToGrid(const Value: Boolean);
+    procedure SetStyle(const Value: TDesignBoxGridStyle);
+    procedure SetVisible(const Value: Boolean);
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     procedure Assign(Source: TPersistent); override;
@@ -318,6 +324,7 @@ type
     property SizeMm: integer read FSizeMm write SetSizeMm default 5;
     property Visible: Boolean read FVisible write SetVisible default False;
     property SnapToGrid: Boolean read FSnapToGrid write SetSnapToGrid default False;
+    property Style: TDesignBoxGridStyle read fStyle write SetStyle default dbgsBoth;
   end;
 
   TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid,
@@ -1057,22 +1064,28 @@ begin
   ACanvas.Pen.Style := psSolid;
   ACanvas.Pen.Width := 1;
 
-  X := 0;
-  while X < FPageSizeMM.Width do
+  if FGridOptions.Style in [dbgsVert, dbgsBoth] then
   begin
-    ACanvas.Pen.Color := FGridOptions.Color;
-    ACanvas.Pen.Mode := pmCopy;
-    ACanvas.MoveTo(MmToPixels(x), 0);
-    ACanvas.LineTo(MmToPixels(x), APageHeight);
-    X := X + FGridOptions.SizeMm;
+    X := 0;
+    while X < FPageSizeMM.Width do
+    begin
+      ACanvas.Pen.Color := FGridOptions.Color;
+      ACanvas.Pen.Mode := pmCopy;
+      ACanvas.MoveTo(MmToPixels(x), 0);
+      ACanvas.LineTo(MmToPixels(x), APageHeight);
+      X := X + FGridOptions.SizeMm;
+    end;
   end;
 
-  Y := 0;
-  while Y < FPageSizeMM.Height do
+  if FGridOptions.Style in [dbgsHorz, dbgsBoth] then
   begin
-    ACanvas.MoveTo(0, MmToPixels(y));
-    ACanvas.LineTo(APageWidth, MmToPixels(y));
-    Y := Y + FGridOptions.SizeMm;
+    Y := 0;
+    while Y < FPageSizeMM.Height do
+    begin
+      ACanvas.MoveTo(0, MmToPixels(y));
+      ACanvas.LineTo(APageWidth, MmToPixels(y));
+      Y := Y + FGridOptions.SizeMm;
+    end;
   end;
 
 end;
@@ -2237,6 +2250,7 @@ begin
   FColor := $00F7E1CE;
   FSizeMm := 5;
   FSnapToGrid := false;
+  FStyle := dbgsBoth;
 end;
 
 procedure TDesignBoxGridOptions.LoadFromJsonObject(AJson: TJsonObject);
@@ -2284,6 +2298,15 @@ end;
 procedure TDesignBoxGridOptions.SetSnapToGrid(const Value: Boolean);
 begin
   FSnapToGrid := Value;
+end;
+
+procedure TDesignBoxGridOptions.SetStyle(const Value: TDesignBoxGridStyle);
+begin
+  if fStyle <> Value then
+  begin
+    fStyle := Value;
+    FDesignBox.Redraw;
+  end;
 end;
 
 procedure TDesignBoxGridOptions.SetVisible(const Value: Boolean);
