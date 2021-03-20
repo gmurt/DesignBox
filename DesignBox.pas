@@ -1,6 +1,5 @@
 unit DesignBox;
 
-
 interface
 
 uses
@@ -453,7 +452,6 @@ type
     function  CanRedo : boolean;
     procedure AlignItems(const aAlignment: TItemAlignment);
 
-    property BorderStyle: TBorderStyle read FBorderStyle write SetBorderStyle default bsSingle;
     property Canvas: TDesignBoxCanvas read FCanvas;
     property Items: TDesignBoxItemList read FItems;
     property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
@@ -472,6 +470,7 @@ type
   published
     property Align;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clSilver;
+    property BorderStyle: TBorderStyle read FBorderStyle write SetBorderStyle default bsSingle;
     property Ctl3D;
     property PageColor : TColor read fPageColor write SetPageColor default clWhite;
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
@@ -2440,10 +2439,9 @@ begin
   if fVisible <> Value then
   begin
     fVisible := Value;
-    fDesignBox.Invalidate;
+    fDesignBox.Redraw; // needed for SetSize to remove fPageOffsets if no rulers
   end;
 end;
-
 
 { TDesignBoxCanvas }
 
