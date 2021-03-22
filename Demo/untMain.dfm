@@ -69,7 +69,14 @@ object frmMain: TfrmMain
     BackgroundColor = clBtnFace
     GridOptions.Visible = True
     PopupMenu = PopupMenu1
+    RulerOptions.ForegroundColor = clGray
+    RulerOptions.BackgroundColor = clWindow
     RulerOptions.Units = 'mm'
+    RulerOptions.Font.Charset = DEFAULT_CHARSET
+    RulerOptions.Font.Color = clWindowText
+    RulerOptions.Font.Height = -13
+    RulerOptions.Font.Name = 'Segoe UI'
+    RulerOptions.Font.Style = []
     PageWidthMM = 190
     PageHeightMM = 100
     OnChange = DesignBox1Change

@@ -276,15 +276,19 @@ type
     fRulerWidthPx : integer;
     fShowUnits: boolean;
     fUnits: string;
+    fFont : TDesignFont;
     procedure SetBackgroundColor(const Value: TColor);
     procedure SetForegroundColor(const Value: TColor);
     procedure SetVisible(const Value: boolean);
-    function GetHeightPx: integer;
-    function GetWidthPx: integer;
+    function  GetHeightPx: integer;
+    function  GetWidthPx: integer;
     procedure SetShowUnits(const Value: boolean);
     procedure SetUnits(const Value: string);
+    procedure SetFont(const Value: TDesignFont);
+    procedure internalHandleRulerFontChanged(Sender: TObject);
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
+    destructor Destroy; override;
     procedure Assign(Source: TPersistent); override;
     procedure LoadFromJsonObject(AJson: TJsonObject);
     procedure SaveToJsonObject(AJson: TJsonObject);
@@ -296,6 +300,7 @@ type
     property HeightPx : integer read GetHeightPx;
     property ShowUnits: boolean read fShowUnits write SetShowUnits default false;
     property Units: string read fUnits write SetUnits;
+    property Font: TDesignFont read fFont write SetFont;
   end;
 
   TDesignBoxGridStyle = (dbgsHorz, dbgsVert, dbgsBoth);
@@ -980,62 +985,67 @@ begin
   ACanvas.Polyline([Point(0, ATopRuler.Bottom), Point(FCanvas.Width, ATopRuler.Bottom)]);
   ACanvas.Polyline([Point(ALeftRuler.Right, 0), Point(ALeftRuler.Right, FCanvas.Height)]);
 
-  ACanvas.Font.Color := fRulerOptions.ForegroundColor;
-  AMm := 1;
-  ACanvas.Brush.Style := bsClear;
-  while MmToPixels(AMm) < ATopRuler.Width do
-  begin
-    AMarkSize := 0;
-    if (AMm) mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
-    if (AMm) mod 10 = 0 then AMarkSize := C_BIG_MARK;
-    if AMarkSize > 0 then
-    begin
-      ACanvas.Polyline([Point(MmToPixels(AMm)+ATopRuler.Left, ATopRuler.Bottom-AMarkSize),
-                        Point(MmToPixels(AMm)+ATopRuler.Left, ATopRuler.Bottom)]);
-      if AMarkSize = C_BIG_MARK then
-      begin
-        tz := ACanvas.TextExtent(AMm.ToString);
-        ACanvas.TextOut((MmToPixels(AMm)+ATopRuler.Left) - (tz.Width div 2), ((ATopRuler.Bottom-tz.Height) - (AMarkSize+1)), AMm.ToString);
-      end;
-    end;
-    Inc(AMm);
-  end;
-
-  AMm := 1;
-  while MmToPixels(AMm) < ALeftRuler.Height do
-  begin
-    AMarkSize := 0;
-    if AMm mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
-    if AMm mod 10 = 0 then AMarkSize := C_BIG_MARK;
-    if AMarkSize > 0 then
-    begin
-      ACanvas.Polyline([Point(ALeftRuler.Right-AMarkSize, MmToPixels(AMm)+ALeftRuler.Top),
-                        Point(ALeftRuler.Right, MmToPixels(AMm)+ALeftRuler.Top)]);
-      if AMarkSize = C_BIG_MARK then
-      begin
-        tz := ACanvas.TextExtent(AMm.ToString);
-
-        ACanvas.TextOut((ALeftRuler.Right-tz.width) - (AMarkSize+1), (MmToPixels(AMm)+ALeftRuler.Top) - (tz.Height div 2), AMm.ToString);
-      end;
-    end;
-    Inc(AMm);
-  end;
-
-  // Draw the Units (or whatever ?)
-  ACanvas.Brush.Color := clWhite;
-  ACanvas.Pen.Color := clWhite;
-  rectOrigin := Rect(ALeftRuler.Left, ATopRuler.Top, ALeftRuler.Right, ATopRuler.Bottom);
-  ACanvas.Rectangle(rectOrigin);
-   if fRulerOptions.ShowUnits then
-  begin
-    rectOrigin := Rect(ALeftRuler.Left, ATopRuler.Top, ALeftRuler.Right, ATopRuler.Bottom);
-    AUnitStr := fRulerOptions.Units;
-    tz := ACanvas.TextExtent(AUnitStr);
+  ACanvas.Font.Assign(FRulerOptions.Font); // likely be the same as the DesignBox, but *could* be different if we allow it
+  try
+    ACanvas.Font.Color := fRulerOptions.ForegroundColor;
+    AMm := 1;
     ACanvas.Brush.Style := bsClear;
-    ACanvas.TextRect(RectOrigin, AUnitStr, [tfCenter, tfVerticalCenter, tfSingleLine]);
-    //ACanvas.TextOut((rectOrigin.Width div 2) - (tz.Width div 2), (rectOrigin.Height div 2) - (tz.Height div 2), fRulerOptions.Units);
-  end;
+    while MmToPixels(AMm) < ATopRuler.Width do
+    begin
+      AMarkSize := 0;
+      if (AMm) mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
+      if (AMm) mod 10 = 0 then AMarkSize := C_BIG_MARK;
+      if AMarkSize > 0 then
+      begin
+        ACanvas.Polyline([Point(MmToPixels(AMm)+ATopRuler.Left, ATopRuler.Bottom-AMarkSize),
+                          Point(MmToPixels(AMm)+ATopRuler.Left, ATopRuler.Bottom)]);
+        if AMarkSize = C_BIG_MARK then
+        begin
+          tz := ACanvas.TextExtent(AMm.ToString);
+          ACanvas.TextOut((MmToPixels(AMm)+ATopRuler.Left) - (tz.Width div 2), ((ATopRuler.Bottom-tz.Height) - (AMarkSize+1)), AMm.ToString);
+        end;
+      end;
+      Inc(AMm);
+    end;
 
+    AMm := 1;
+    while MmToPixels(AMm) < ALeftRuler.Height do
+    begin
+      AMarkSize := 0;
+      if AMm mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
+      if AMm mod 10 = 0 then AMarkSize := C_BIG_MARK;
+      if AMarkSize > 0 then
+      begin
+        ACanvas.Polyline([Point(ALeftRuler.Right-AMarkSize, MmToPixels(AMm)+ALeftRuler.Top),
+                          Point(ALeftRuler.Right, MmToPixels(AMm)+ALeftRuler.Top)]);
+        if AMarkSize = C_BIG_MARK then
+        begin
+          tz := ACanvas.TextExtent(AMm.ToString);
+
+          ACanvas.TextOut((ALeftRuler.Right-tz.width) - (AMarkSize+1), (MmToPixels(AMm)+ALeftRuler.Top) - (tz.Height div 2), AMm.ToString);
+        end;
+      end;
+      Inc(AMm);
+    end;
+
+    // Draw the Units (or whatever ?)
+    ACanvas.Brush.Color := clWhite;
+    ACanvas.Pen.Color := clWhite;
+    rectOrigin := Rect(ALeftRuler.Left, ATopRuler.Top, ALeftRuler.Right, ATopRuler.Bottom);
+    ACanvas.Rectangle(rectOrigin);
+     if fRulerOptions.ShowUnits then
+    begin
+      rectOrigin := Rect(ALeftRuler.Left, ATopRuler.Top, ALeftRuler.Right, ATopRuler.Bottom);
+      AUnitStr := fRulerOptions.Units;
+      tz := ACanvas.TextExtent(AUnitStr);
+      ACanvas.Brush.Style := bsClear;
+      ACanvas.TextRect(RectOrigin, AUnitStr, [tfCenter, tfVerticalCenter, tfSingleLine]);
+      //ACanvas.TextOut((rectOrigin.Width div 2) - (tz.Width div 2), (rectOrigin.Height div 2) - (tz.Height div 2), fRulerOptions.Units);
+    end;
+
+  finally
+    ACanvas.Font.Assign(self.Font);
+  end;
 end;
 
 procedure TDesignBox.Endupdate;
@@ -2376,6 +2386,8 @@ begin
   FVisible := (Source as TDesignBoxRulerOptions).Visible;
   FForegroundColor := (Source as TDesignBoxRulerOptions).ForegroundColor;
   FBackgroundColor := (Source as TDesignBoxRulerOptions).BackgroundColor;
+  fRulerWidthPx := (Source as TDesignBoxRulerOptions).WidthPx;
+  fRulerHeightPx := (Source as TDesignBoxRulerOptions).HeightPx;
   FDesignBox.Invalidate;
 end;
 
@@ -2388,7 +2400,16 @@ begin
   fVisible := true;
   fShowUnits := false; // backward compatibility
   fUnits := 'mm'; // changing this would mean changing the designbox as a whole to not use mm
+  fFont := TDesignFont.Create;
+  fFont.assign(ADesignBox.Font);
+  fFont.OnChange := internalHandleRulerFontChanged;
  end;
+
+destructor TDesignBoxRulerOptions.Destroy;
+begin
+  fFont.free;
+  inherited;
+end;
 
 function TDesignBoxRulerOptions.GetHeightPx: integer;
 begin
@@ -2412,6 +2433,13 @@ begin
     fShowUnits := TJsonBool(aJson.Values['rulerShowUnits']).AsBoolean;
   if assigned(AJson.Values['rulerUnits']) then
     fUnits := AJson.Values['units'].value;
+  if assigned(AJson.Values['rulerFont']) then
+    FFont.LoadFromJson(TJsonObject(AJson.Values['rulerFont']));
+end;
+
+procedure TDesignBoxRulerOptions.internalHandleRulerFontChanged(Sender: TObject);
+begin
+  fDesignBox.Invalidate;
 end;
 
 procedure TDesignBoxRulerOptions.SaveToJsonObject(AJson: TJsonObject);
@@ -2419,6 +2447,11 @@ begin
   AJson.AddPair('rulersVisible', TJsonBool.Create(fVisible));
   AJson.AddPair('rulerForegroundColor', ColorToString(fForegroundColor));
   AJson.AddPair('rulerBackgroundColor', ColorToString(fBackgroundColor));
+  AJson.AddPair('rulerShowUnits', TJsonBool.Create(fShowUnits));
+  AJson.AddPair('rulerUnits', fUnits);
+  var JFont := TJsonObject.Create;
+  fFont.SaveToJson(JFont);
+  AJson.AddPair('rulerFont', JFont);
 end;
 
 procedure TDesignBoxRulerOptions.SetBackgroundColor(const Value: TColor);
@@ -2428,6 +2461,11 @@ begin
     fBackgroundColor := Value;
     fDesignBox.Invalidate;
   end;
+end;
+
+procedure TDesignBoxRulerOptions.SetFont(const Value: TDesignFont);
+begin
+  fFont.Assign(Value);
 end;
 
 procedure TDesignBoxRulerOptions.SetForegroundColor(const Value: TColor);
@@ -2661,9 +2699,13 @@ procedure TDesignBoxCanvas.SetSize(w, h: integer);
 var
   ARulerWidth: integer;
 begin
-  //if (FBuffer.Width = w)  and (FBuffer.Height = h) then
-  //  Exit;
-  aRulerWidth := FBuffer.Canvas.TextWidth('9999') + 6;
+  fBuffer.Canvas.Font := fDesignBox.RulerOptions.Font;
+  try
+    aRulerWidth := FBuffer.Canvas.TextWidth('9999') + 6;
+  finally
+    fBuffer.Canvas.Font := fDesignBox.Font;
+  end;
+
   case FDesignBox.RulerOptions.Visible of
     True: FDesignBox.FPageOffset := Point(aRulerWidth, aRulerWidth); // slightly narrower
     False: FDesignBox.FPageOffset := Point(0, 0);
