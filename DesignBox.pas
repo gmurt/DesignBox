@@ -1533,7 +1533,7 @@ end;
 function TDesignBoxBaseItem.asJsonObject: TJsonObject;
 begin
   result := TJsonObject.Create;
-  SaveToJson((result);
+  SaveToJson(result);
 end;
 
 function TDesignBoxBaseItem.BoundsRect: TRect;
