@@ -240,6 +240,9 @@ type
     property Graphic: TPicture read FGraphic write SetGraphic;
   end;
 
+  TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid,
+    ialVertCenters, ialHorzCenters);
+
   TDesignBoxItemList = class(TObjectList<TDesignBoxBaseItem>)
   private
     FDesignBox: TDesignBox;
@@ -250,6 +253,7 @@ type
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function BoundsRect: TRect;
+    procedure AlignItems(const aAlignment : TItemAlignment);
     function Add(AItem: TDesignBoxBaseItem; ABoundsMm: TRectF): TDesignBoxBaseItem; overload;
     function Add(AClass: TDesignBoxBaseItemClass; ABoundsMm: TRectF): TDesignBoxBaseItem; overload;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
@@ -333,8 +337,7 @@ type
     property Style: TDesignBoxGridStyle read fStyle write SetStyle default dbgsBoth;
   end;
 
-  TItemAlignment = (ialLeftSides, ialTopSides, ialRightSides, ialBottomSides, ialToGrid,
-    ialVertCenters, ialHorzCenters);
+
 
 
   TDesignBoxCanvas = class(TGraphicControl)
@@ -569,26 +572,9 @@ end;
 { TDesignBox }
 
 procedure TDesignBox.AlignItems(const aAlignment: TItemAlignment);
-var
-  AItem: TDesignBoxBaseItem;
-  ASelectedRect: TRect; // what pixel (horz or vert) are we aligning on?
 begin
-  ASelectedRect := SelectedItems.BoundsRect;
-  for AItem in FSelectedItems do
-  begin
-    case aAlignment of
-      ialLeftSides    : AItem.LeftMM := PixelsToMM(ASelectedRect.Left);
-      ialTopSides     : AItem.TopMM  := PixelsToMM(ASelectedRect.Top);
-      ialRightSides   : AItem.LeftMM := PixelsToMM(ASelectedRect.Right) - aItem.WidthMM;
-      ialBottomSides  : Aitem.TopMM  := PixelsToMM(ASelectedRect.Bottom) - AItem.HeightMM;
-      ialToGrid       : AItem.SnapToGrid;
-      ialVertCenters  : AItem.CenterPtMm  := PointF(AItem.CenterPtMm.X, PixelsToMM(ASelectedRect.CenterPoint.Y));
-      ialHorzCenters  : AItem.CenterPtMm  := PointF(PixelsToMM(ASelectedRect.CenterPoint.X), AItem.CenterPtMm.Y);
-    end;
-  end;
-
+  SelectedItems.AlignItems(aAlignment);
   Redraw;
-
 end;
 
 procedure TDesignBox.BeginUpdate;
@@ -1701,6 +1687,26 @@ begin
   if Supports(Result, IFontObject, ABrushIntf) then AFontIntf.Font.Assign(FDesignBox.Canvas.Font);
   if Supports(Result, IPenObject, APenIntf) then APenIntf.Pen.Assign(FDesignBox.Canvas.Pen);
   Result := Add(Result, ABoundsMm);
+end;
+
+procedure TDesignBoxItemList.AlignItems(const aAlignment: TItemAlignment);
+var
+  aRect : TRect;
+  AItem: TDesignBoxBaseItem;
+begin
+  aRect := BoundsRect;
+  for AItem in self do
+  begin
+    case aAlignment of
+      ialLeftSides    : AItem.LeftMM := PixelsToMM(aRect.Left);
+      ialTopSides     : AItem.TopMM  := PixelsToMM(aRect.Top);
+      ialRightSides   : AItem.LeftMM := PixelsToMM(aRect.Right) - aItem.WidthMM;
+      ialBottomSides  : Aitem.TopMM  := PixelsToMM(aRect.Bottom) - AItem.HeightMM;
+      ialToGrid       : AItem.SnapToGrid;
+      ialVertCenters  : AItem.CenterPtMm  := PointF(AItem.CenterPtMm.X, PixelsToMM(aRect.CenterPoint.Y));
+      ialHorzCenters  : AItem.CenterPtMm  := PointF(PixelsToMM(aRect.CenterPoint.X), AItem.CenterPtMm.Y);
+    end;
+  end;
 end;
 
 function TDesignBoxItemList.Add(AItem: TDesignBoxBaseItem; ABoundsMm: TRectF): TDesignBoxBaseItem;
