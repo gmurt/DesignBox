@@ -123,6 +123,7 @@ type
     procedure UpdateToDragPosition;
     procedure SnapToGrid;
     procedure SaveToJson(AJson: TJsonObject); virtual;
+    function asJsonObject: TJsonObject;
     procedure LoadFromJson(AJson: TJsonObject); virtual;
     property Selected: Boolean read FSelected write SetSelectedItem;
     property LeftMM: Extended read GetLeftMM write SetLeftMM;
@@ -1527,6 +1528,12 @@ end;
 function TDesignBoxBaseItem.PointInRgn(x, y: integer): Boolean;
 begin
   Result := PtInRect(RectPixels, Point(x,y));
+end;
+
+function TDesignBoxBaseItem.asJsonObject: TJsonObject;
+begin
+  result := TJsonObject.Create;
+  SaveToJson((result);
 end;
 
 function TDesignBoxBaseItem.BoundsRect: TRect;
