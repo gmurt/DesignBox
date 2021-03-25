@@ -95,6 +95,8 @@ type
     FDrawOffset: TPoint;
     fOptions : TItemOptions;
     fVisible: boolean;
+    fTag: NativeInt;
+    fData: TObject;
     function GetLeftMM: Extended;
     function GetTopMM: Extended;
     procedure Changed;
@@ -115,6 +117,7 @@ type
     function BoundsRect: TRect;
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
     procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
+    property Data: TObject read fData write fData; // for linking external object instances (or even other design box items)
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
@@ -133,6 +136,7 @@ type
     property CenterPtMm: TPointF read GetCenterPtMm write SetCenterPtMm;
     property Options: TItemOptions read fOptions write SetOptions;
     property Visible: boolean read fVisible write SetVisible;
+    property Tag: NativeInt read fTag write fTag;
   end;
 
   TDesignBoxBaseItemClass = class of TDesignBoxBaseItem;
