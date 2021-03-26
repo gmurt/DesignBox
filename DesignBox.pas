@@ -537,7 +537,7 @@ var
   AScale: single;
 begin
   AScale := ScreenDpi / C_DPI;
-  Result := Round(((C_DPI / C_MM_PER_INCH) * AValue) * AScale);
+  Result := Round((C_DPI / C_MM_PER_INCH) * AValue * AScale);
 end;
 
 function MmToPixelsF(AValue: Extended): Extended;
@@ -550,7 +550,7 @@ end;
 
 function PixelsToMM(AValue: Extended) : single;
 begin
-  Result := AValue / (ScreenDpi/ C_MM_PER_INCH);
+  Result := AValue / (ScreenDpi / C_MM_PER_INCH);
 end;
 
 { TDesignBoxItemInterface }
@@ -2449,7 +2449,7 @@ begin
   if assigned(AJson.Values['rulerShowUnits']) then
     fShowUnits := TJsonBool(aJson.Values['rulerShowUnits']).AsBoolean;
   if assigned(AJson.Values['rulerUnits']) then
-    fUnits := AJson.Values['units'].value;
+    fUnits := AJson.Values['rulerUnits'].value;
   if assigned(AJson.Values['rulerFont']) then
     FFont.LoadFromJson(TJsonObject(AJson.Values['rulerFont']));
 end;

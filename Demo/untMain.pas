@@ -92,6 +92,7 @@ type
     N6: TMenuItem;
     AlignHorzCenters2: TMenuItem;
     AlignVertCenters2: TMenuItem;
+    btnTestSizes: TButton;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -133,6 +134,7 @@ type
     procedure RadioGroup1Click(Sender: TObject);
     procedure actAlignHorzCenterExecute(Sender: TObject);
     procedure actAlignVertCenterExecute(Sender: TObject);
+    procedure btnTestSizesClick(Sender: TObject);
   private
     function AppDir: string;
     procedure UpdateItemCoords;
@@ -284,6 +286,38 @@ begin
   Button4.DropDownMenu := alignPopup;
 end;
 
+procedure TfrmMain.btnTestSizesClick(Sender: TObject);
+var
+  I: Integer;
+  R: Integer;
+  PH : integer;
+  Rangle: TDesignBoxItemRectangle;
+  Texter : TDesignBoxItemText;
+const
+  Sizes : array [0..9] of single = (6.3, 6.9, 6.0, 6.2, 9.1, 9.5, 9.9, 10, 10.75, 15.75);
+  HeightMM = 10; // mm
+  MarginMM = 2; // mm
+  LeftMM = 10; // mm
+begin
+  DesignBox1.Clear;
+  DesignBox1.BeginUpdate;
+  try
+    PH := DesignBox1.PageHeightMM;
+    for I := 0 to Length(Sizes)-1 do
+    begin
+      R := MarginMM + (I) * (HeightMM + MarginMM);
+      Rangle := DesignBox1.Canvas.Rectangle(LeftMM, R, LeftMM + Sizes[I], R + HeightMM);
+      Rangle.Tag := Trunc(Sizes[I] * 1000); // store width in MM
+      Texter := DesignBox1.Canvas.TextOut(LeftMM, R, IntToStr(Rangle.Tag));
+      if R + HeightMM > PH then
+        PH := R + HeightMM;
+    end;
+    DesignBox1.PageHeightMM := PH + MarginMM;
+  finally
+    DesignBox1.Endupdate;
+  end;
+end;
+
 procedure TfrmMain.chkNoFillClick(Sender: TObject);
 begin
   case TCheckBox(Sender).Checked of
@@ -376,6 +410,8 @@ begin
     chkNoBorder.checked := TDesignBoxItemText(AItem).Pen.style = psClear;
     chkNoFill.checked := TDesignBoxItemText(AItem).Brush.Style = bsClear;
   end;
+
+  StatusBar1.SimpleText := Format('TopLeft=(%f, %f) | Size=(%f, %f) | Tag=%d', [AItem.LeftMM, AItem.TopMM, AItem.WidthMM, AItem.HeightMM, AItem.Tag]);
 
   {UpdateItemCoords(DesignBox1.SelectedItem);
   // no selected item = set default fonts/color for next item

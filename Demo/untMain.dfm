@@ -27,14 +27,13 @@ object frmMain: TfrmMain
   end
   object Bevel2: TBevel
     Left = 0
-    Top = 633
+    Top = 592
     Width = 832
     Height = 8
     Align = alBottom
     Shape = bsSpacer
     ExplicitLeft = 8
-    ExplicitTop = 49
-    ExplicitWidth = 362
+    ExplicitTop = 588
   end
   object Bevel3: TBevel
     Left = 824
@@ -693,6 +692,15 @@ object frmMain: TfrmMain
       TabOrder = 15
       OnClick = RadioGroup1Click
     end
+    object btnTestSizes: TButton
+      Left = 687
+      Top = 80
+      Width = 65
+      Height = 25
+      Caption = 'Test MM'
+      TabOrder = 16
+      OnClick = btnTestSizesClick
+    end
   end
   object StatusBar1: TStatusBar
     Left = 0
@@ -704,7 +712,7 @@ object frmMain: TfrmMain
   end
   object Panel2: TPanel
     Left = 0
-    Top = 592
+    Top = 600
     Width = 832
     Height = 41
     Align = alBottom
