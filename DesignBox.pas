@@ -252,8 +252,7 @@ type
     FDesignBox: TDesignBox;
     function GetSelectedCount: integer;
     procedure PaintToCanvas(ACanvas: TCanvas);
-  protected
-
+    function BoundsRectMM: TRectF;
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     function BoundsRect: TRect;
@@ -340,9 +339,6 @@ type
     property SnapToGrid: Boolean read FSnapToGrid write SetSnapToGrid default False;
     property Style: TDesignBoxGridStyle read fStyle write SetStyle default dbgsBoth;
   end;
-
-
-
 
   TDesignBoxCanvas = class(TGraphicControl)
   private
@@ -511,6 +507,8 @@ procedure Register;
 
 function MmToPixels(AValue: Extended): integer;
 function PixelsToMM(AValue: Extended) : single;
+function MMtoMu(AValue: Extended) : integer;
+function MuToMM(AValue: integer) : Extended;
 
 implementation
 
@@ -521,6 +519,7 @@ const
   C_SELECTBOX_INFLATE = 0;
   C_DPI = 300;
   C_MM_PER_INCH = 25.4;
+  C_DRAG_THRESHOLD = 4; //px
 
 procedure Register;
 begin
@@ -551,6 +550,26 @@ end;
 function PixelsToMM(AValue: Extended) : single;
 begin
   Result := AValue / (ScreenDpi / C_MM_PER_INCH);
+end;
+
+function MMtoMu(AValue: Extended) : integer;
+begin
+  result := Trunc(AValue * 1000);
+end;
+
+function MuToMM(AValue: integer) : Extended;
+begin
+  result := AValue / 1000;
+end;
+
+function MuToPixels(AValue: integer) : integer;
+begin
+  result := MMtoPixels(MuToMM(AValue));
+end;
+
+function PixelsToMu(AValue: integer): integer;
+begin
+  result := Trunc(PixelsToMM(AValue) * 1000);
 end;
 
 { TDesignBoxItemInterface }
@@ -904,11 +923,11 @@ begin
   if (FDragging) and (FDesignBox.FItems.SelectedCount = 0) and (FDesignBox.Mode = dbmSelect) then
   begin
     ADragArea := Rect(Min(FMouseDownPos.X, X), Min(FMouseDownPos.Y, Y), Max(FMouseDownPos.X, X), Max(FMouseDownPos.Y, Y));
-    if (ADragArea.Width > 4) and (ADragArea.Height > 4) then
-    for AItem in FDesignBox.FItems do
-    begin
-      AItem.Selected := AItem.RectsIntersect(ADragArea) and (canSelect in AItem.Options) and (Aitem.Visible);
-    end;
+    if (ADragArea.Width > C_DRAG_THRESHOLD) and (ADragArea.Height > C_DRAG_THRESHOLD) then
+      for AItem in FDesignBox.FItems do
+      begin
+        AItem.Selected := AItem.RectsIntersect(ADragArea) and (canSelect in AItem.Options) and (Aitem.Visible);
+      end;
   end
   else
   begin
@@ -916,7 +935,6 @@ begin
     begin
       AItem.UpdateToDragPosition;
     end;
-
   end;
   FDragging := False;
 
@@ -1404,8 +1422,8 @@ begin
   inherited;
   ACanvas.Font.Assign(FFont);
   // calculate width/height...
-  FWidth := (ACanvas.TextWidth(FText));
-  FHeight := (ACanvas.TextHeight(FText));
+  FWidth := PixelsToMu(ACanvas.TextWidth(FText));
+  FHeight := PixelsToMu(ACanvas.TextHeight(FText));
 
   r := RectPixels;
   ACanvas.Rectangle(r.Left, r.Top, r.Right+1, r.Bottom+1);
@@ -1478,14 +1496,14 @@ begin
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Width := 1;
-    ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right+1, ARect.Bottom+1);
+    ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right + 1, ARect.Bottom + 1);
   end;
 end;
 
 procedure TDesignBoxBaseItem.UpdateToDragPosition;
 begin
-  FPosition.X := FPosition.X + FDrawOffset.X;
-  FPosition.Y := FPosition.Y + FDrawOffset.Y;
+  FPosition.X := FPosition.X + PixelsToMu(FDrawOffset.X);
+  FPosition.Y := FPosition.Y + PixelsToMu(FDrawOffset.Y);
   FDrawOffset := Point(0,0);
 end;
 
@@ -1496,23 +1514,22 @@ end;
 
 function TDesignBoxBaseItem.GetHeightMm: Extended;
 begin
-  Result := PixelsToMM(FHeight);
+  Result := MuToMM(FHeight);
 end;
 
 function TDesignBoxBaseItem.GetLeftMM: Extended;
 begin
-  Result := PixelsToMM(FPosition.X);
+  Result := MuToMM(FPosition.X);
 end;
 
 function TDesignBoxBaseItem.GetTopMM: Extended;
 begin
-  Result := PixelsToMM(FPosition.Y);
+  Result := MuToMM(FPosition.Y);
 end;
-
 
 function TDesignBoxBaseItem.GetWidthMM: Extended;
 begin
-  Result := PixelsToMM(FWidth);
+  Result := MuToMM(FWidth);
 end;
 
 function TDesignBoxBaseItem.PointInRgn(x, y: integer): Boolean;
@@ -1528,27 +1545,29 @@ end;
 
 function TDesignBoxBaseItem.BoundsRect: TRect;
 begin
-  Result := Rect(FPosition.X,
-                 FPosition.Y,
-                 FPosition.X + FWidth,
-                 FPosition.Y + FHeight);
+  // Stored measurements are Mu (not Pixels) so conversion needed here as BoundsRect is pixels
+  Result := Rect(MuToPixels(FPosition.X),
+                 MuToPixels(FPosition.Y),
+                 MuToPixels(FPosition.X + FWidth),
+                 MuToPixels(FPosition.Y + FHeight));
 end;
 
 function TDesignBoxBaseItem.RectMM: TRectF;
 begin
-  Result := RectPixels;
-  Result.Left := PixelsToMM(Result.Left);
-  Result.Top := PixelsToMM(Result.Top);
-  Result.Right := PixelsToMM(Result.Right);
-  Result.Bottom := PixelsToMM(Result.Bottom);
+//  Result := RectPixels; <-- removed this as converting from MM to Px to MM is just asking for rounding trouble
+  Result.Left := LeftMM;
+  Result.Top := TopMM;
+  Result.Right := WidthMM + LeftMM;
+  Result.Bottom := HeightMM + TopMM;
+  OffsetRect(Result, PixelsToMM(FDrawOffset.X), PixelsToMM(fDrawOffset.Y)); // need to convert FDrawOffset (pixels) to standard measurement unit (MM)
 end;
 
 function TDesignBoxBaseItem.RectPixels: TRect;
 begin
-  Result.Left := FPosition.X;
-  Result.Top := FPosition.Y;
-  Result.Right := FPosition.X + FWidth;
-  Result.Bottom := FPosition.Y + FHeight;
+  Result.Left := MuToPixels(FPosition.X);
+  Result.Top := MuToPixels(FPosition.Y);
+  Result.Right := MuToPixels(FPosition.X + FWidth);
+  Result.Bottom := MuToPixels(FPosition.Y + FHeight);
   OffsetRect(Result, FDrawOffset.X, FDrawOffset.Y);
 end;
 
@@ -1564,10 +1583,13 @@ var
   aOption : TItemOption;
   jv: TJsonValue;
 begin
-  FPosition.X := MmToPixels(StrToFloatDef(AJson.Values['x'].Value, 0));
-  FPosition.Y := MmToPixels(StrToFloatDef(AJson.Values['y'].Value, 0));
-  FWidth := MmToPixels(StrToFloatDef(AJson.Values['width'].Value, 0));
-  FHeight := MmToPixels(StrToFloatDef(AJson.Values['height'].Value, 0));
+  // Stored measurements are Mu, so storing as int not float now
+  // -- note property names have changed (add "Mu" suffix)
+  { TODO 1 -oSC -Json : to add support for reading x, y, width, height back as pixels for backward compatibility if it's an issue for Graham (its not for me)}
+  FPosition.X := TJsonNumber(AJson.Values['xMu']).asInt;
+  FPosition.Y := TJsonNumber(AJson.Values['yMu']).asInt;
+  FWidth := TJsonNumber(AJson.Values['widthMu']).asInt;
+  FHeight := TJsonNumber(AJson.Values['heightMu']).asInt;
   if assigned(aJson.Values['options']) then
   begin
     fOptions := [];
@@ -1590,11 +1612,12 @@ var
   aOption : TItemOption;
   jOptions : TJsonArray;
 begin
+  // stored measurements are Mu (micrometres), so reading as Int
   AJson.AddPair('obj', ClassName);
-  AJson.AddPair('x',  PixelsToMm(FPosition.X).ToString);
-  AJson.AddPair('y', PixelsToMm(FPosition.Y).ToString);
-  AJson.AddPair('width', PixelsToMm(FWidth).ToString);
-  AJson.AddPair('height',PixelsToMm(FHeight).ToString);
+  AJson.AddPair('xMu',  TJsonNumber.Create(FPosition.X));
+  AJson.AddPair('yMu', TJsonNumber.Create(FPosition.Y));
+  AJson.AddPair('widthMu', TJsonNumber.Create(FWidth));
+  AJson.AddPair('heightMu',TJsonNumber.Create(FHeight));
   jOptions := TJsonArray.Create;
   for aOption in fOptions do
     jOptions.Add(TRttiEnumerationType.GetName(aOption));
@@ -1611,12 +1634,12 @@ end;
 
 procedure TDesignBoxBaseItem.SetHeightMm(const Value: Extended);
 begin
-  FHeight := MmToPixels(Value);
+  FHeight := MmToMu(Value);
 end;
 
 procedure TDesignBoxBaseItem.SetLeftMM(const Value: Extended);
 begin
-  FPosition.X := MmToPixels(Value)
+  FPosition.X := MmToMu(Value)
 end;
 
 procedure TDesignBoxBaseItem.SetOptions(const Value: TItemOptions);
@@ -1635,7 +1658,7 @@ end;
 
 procedure TDesignBoxBaseItem.SetTopMM(const Value: Extended);
 begin
-  FPosition.Y := MmToPixels(Value)
+  FPosition.Y := MmToMu(Value)
 end;
 
 procedure TDesignBoxBaseItem.SetVisible(const Value: boolean);
@@ -1650,7 +1673,7 @@ end;
 
 procedure TDesignBoxBaseItem.SetWidthMM(const Value: Extended);
 begin
-  FWidth := MmToPixels(Value)
+  FWidth := MmToMu(Value)
 end;
 
 procedure TDesignBoxBaseItem.SnapToGrid;
@@ -1680,6 +1703,22 @@ begin
   end;
 end;
 
+function TDesignBoxItemList.BoundsRectMM: TRectF;
+var
+  AItem: TDesignBoxBaseItem;
+  ICount: integer;
+begin
+  for ICount := 0 to Count-1 do
+  begin
+    AItem := Items[ICount];
+    if ICount = 0 then
+      Result := AItem.RectMM
+    else
+      Result := Result.Union(Result, AItem.RectMM);
+  end;
+end;
+
+
 function TDesignBoxItemList.Add(AClass: TDesignBoxBaseItemClass; ABoundsMm: TRectF): TDesignBoxBaseItem;
 var
   ABrushIntf: IBrushObject;
@@ -1695,20 +1734,20 @@ end;
 
 procedure TDesignBoxItemList.AlignItems(const aAlignment: TItemAlignment);
 var
-  aRect : TRect;
+  aRect : TRectF;
   AItem: TDesignBoxBaseItem;
 begin
-  aRect := BoundsRect;
+  aRect := BoundsRectMM;  //
   for AItem in self do
   begin
     case aAlignment of
-      ialLeftSides    : AItem.LeftMM := PixelsToMM(aRect.Left);
-      ialTopSides     : AItem.TopMM  := PixelsToMM(aRect.Top);
-      ialRightSides   : AItem.LeftMM := PixelsToMM(aRect.Right) - aItem.WidthMM;
-      ialBottomSides  : Aitem.TopMM  := PixelsToMM(aRect.Bottom) - AItem.HeightMM;
+      ialLeftSides    : AItem.LeftMM := aRect.Left;
+      ialTopSides     : AItem.TopMM  := aRect.Top;
+      ialRightSides   : AItem.LeftMM := aRect.Right - aItem.WidthMM;
+      ialBottomSides  : Aitem.TopMM  := aRect.Bottom - AItem.HeightMM;
       ialToGrid       : AItem.SnapToGrid;
-      ialVertCenters  : AItem.CenterPtMm  := PointF(AItem.CenterPtMm.X, PixelsToMM(aRect.CenterPoint.Y));
-      ialHorzCenters  : AItem.CenterPtMm  := PointF(PixelsToMM(aRect.CenterPoint.X), AItem.CenterPtMm.Y);
+      ialVertCenters  : AItem.CenterPtMm  := PointF(AItem.CenterPtMm.X, aRect.CenterPoint.Y);
+      ialHorzCenters  : AItem.CenterPtMm  := PointF(aRect.CenterPoint.X, AItem.CenterPtMm.Y);
     end;
   end;
 end;
@@ -1718,8 +1757,8 @@ begin
   Result := AItem;
   Result.LeftMM := ABoundsMm.Left;
   Result.TopMM := ABoundsMm.Top;
-  if ABoundsMm.Width > 0 then Result.FWidth := MmToPixels(ABoundsMm.Width);
-  if ABoundsMm.Height > 0 then Result.FHeight := MmToPixels(ABoundsMm.Height);
+  if ABoundsMm.Width > 0 then Result.WidthMM := ABoundsMm.Width;
+  if ABoundsMm.Height > 0 then Result.HeightMM := ABoundsMm.Height;
   Add(result);
   FDesignBox.ReDraw;
   FDesignBox.RecordSnapshot;
@@ -2083,10 +2122,10 @@ end;
 
 procedure TDesignBoxItemSizable.SetCoords(ALeftMM, ATopMM, ARightMM, ABottomMM: single);
 begin
-  FPosition.X := MmToPixels(ALeftMM);
-  FPosition.Y := MmToPixels(ATopMM);
-  FWidth := MmToPixels(ARightMM-ALeftMM);
-  FHeight := MmToPixels(ABottomMM-ATopMM);
+  FPosition.X := MMtoMu(ALeftMM);
+  FPosition.Y := MMtoMu(ATopMM);
+  FWidth := MMtoMu(ARightMM-ALeftMM);
+  FHeight := MMtoMu(ABottomMM-ATopMM);
   Changed;
 end;
 
@@ -2728,8 +2767,8 @@ begin
     False: FDesignBox.FPageOffset := Point(0, 0);
   end;
 
-  Width := Max(w+FDesignBox.FPageOffset.x, FDesignBox.ClientWidth);
-  Height := Max(h+FDesignBox.FPageOffset.y, FDesignBox.ClientHeight);
+  Width := Max(w + FDesignBox.FPageOffset.x, FDesignBox.ClientWidth);
+  Height := Max(h + FDesignBox.FPageOffset.y, FDesignBox.ClientHeight);
 
 
   FBuffer.SetSize(w,h);

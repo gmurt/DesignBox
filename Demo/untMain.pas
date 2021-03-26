@@ -291,7 +291,7 @@ var
   I: Integer;
   R: Integer;
   PH : integer;
-  Rangle: TDesignBoxItemRectangle;
+  RTangle: TDesignBoxItemRectangle;
   Texter : TDesignBoxItemText;
 const
   Sizes : array [0..9] of single = (6.3, 6.9, 6.0, 6.2, 9.1, 9.5, 9.9, 10, 10.75, 15.75);
@@ -306,9 +306,9 @@ begin
     for I := 0 to Length(Sizes)-1 do
     begin
       R := MarginMM + (I) * (HeightMM + MarginMM);
-      Rangle := DesignBox1.Canvas.Rectangle(LeftMM, R, LeftMM + Sizes[I], R + HeightMM);
-      Rangle.Tag := Trunc(Sizes[I] * 1000); // store width in MM
-      Texter := DesignBox1.Canvas.TextOut(LeftMM, R, IntToStr(Rangle.Tag));
+      RTangle := DesignBox1.Canvas.Rectangle(LeftMM, R, LeftMM + Sizes[I], R + HeightMM);
+      RTangle.Tag := Trunc(Sizes[I] * 1000); // store width in MM
+      Texter := DesignBox1.Canvas.TextOut(LeftMM, R, IntToStr(RTangle.Tag));
       if R + HeightMM > PH then
         PH := R + HeightMM;
     end;
