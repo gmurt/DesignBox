@@ -340,6 +340,8 @@ type
     property Style: TDesignBoxGridStyle read fStyle write SetStyle default dbgsBoth;
   end;
 
+  TDesignBoxBackgroundPosition = (bgStretch, bgStretchProp, bgCentre);
+
   TDesignBoxCanvas = class(TGraphicControl)
   private
     //FTempCanvas: TBitmap;
@@ -351,6 +353,8 @@ type
     FDragging: Boolean;
     FMouseDownPos: TPoint;
     FMouseXY: TPoint;
+    fBackground: TPicture;
+    fBackgroundPos: TDesignBoxBackgroundPosition;
     procedure SetBrush(const Value: TBrush);
     procedure SetFont(const Value: TFont);
     procedure SetPen(const Value: TPen);
@@ -358,6 +362,9 @@ type
     procedure OnBrushChanged(Sender: TObject);
     procedure OnFontChanged(Sender: TObject);
     procedure OnPenChanged(Sender: TObject);
+    procedure SetBackground(const Value: TPicture);
+    procedure SetBackgroundPos(const Value: TDesignBoxBackgroundPosition);
+    function GetDestRect(aOriginalSize, aClientSize: TSize; Stretch, Proportional, Center: boolean): TRect;
 
   protected
     procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
@@ -365,7 +372,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-
+    procedure DrawBackground(const aRect: TRect);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -387,6 +394,8 @@ type
     procedure BeginUpdate;
     procedure EndUpdate;
 
+    property Background: TPicture read fBackground write SetBackground;
+    property BackgroundPos: TDesignBoxBackgroundPosition read fBackgroundPos write SetBackgroundPos;
     property Brush: TBrush read FBrush write SetBrush;
     property Font: TFont read FFont write SetFont;
     property Pen: TPen read FPen write SetPen;
@@ -1172,6 +1181,8 @@ begin
   FCanvas.FBuffer.Canvas.Pen.Color := clBlack;
   FCanvas.FBuffer.Canvas.Pen.Mode := pmCopy;
   FCanvas.FBuffer.Canvas.Rectangle(0, 0, FCanvas.FBuffer.Width, FCanvas.FBuffer.Height);
+
+  FCanvas.DrawBackground(Rect(0, 0, FCanvas.FBuffer.Width, FCanvas.FBuffer.Height));
 
   if FGridOptions.Visible then
     DrawGrid(FCanvas.FBuffer.Canvas);
@@ -2596,6 +2607,78 @@ begin
   end;
 end;
 
+procedure TDesignBoxCanvas.DrawBackground(const aRect: TRect);
+var
+  imageRect: TRect;
+  aBgSize: TSize;
+  aBufferSize: TSize;
+begin
+  if assigned(fBackground.Graphic) and not fBackground.Graphic.Empty then
+  begin
+    aBgSize := TSize.Create(fBackground.Graphic.Width, fBackground.Graphic.Height);
+    aBufferSize := TSize.Create(fBuffer.Width, fBuffer.Height);
+    case fBackgroundPos of
+      bgStretch :     imageRect := GetDestRect(aBgSize, aBufferSize, True, false, false);
+      bgStretchProp:  imageRect := GetDestRect(aBgSize, aBufferSize, True, True, True);
+      bgCentre:       imageRect := GetDestRect(TSize.Create(fBackground.Graphic.Width, fBackground.Graphic.Height), TSize.Create(fBuffer.Width, fBuffer.Height), False, False, True);
+    end;
+    FBuffer.Canvas.StretchDraw(imageRect, fBackground.Graphic);
+  end;
+
+end;
+
+function TDesignBoxCanvas.GetDestRect(aOriginalSize: TSize; aClientSize: TSize; Stretch, Proportional, Center: boolean): TRect;
+var
+  w, h, cw, ch: Integer;
+  xyaspect: Double;
+begin
+  w := aOriginalSize.Width;
+  h := aOriginalSize.Height;
+  cw := aClientSize.Width;
+  ch := aClientSize.Height;
+  if Stretch or (Proportional and ((w > cw) or (h > ch))) then
+  begin
+    if Proportional and (w > 0) and (h > 0) then
+    begin
+      xyaspect := w / h;
+      if w > h then
+      begin
+        w := cw;
+        h := Trunc(cw / xyaspect);
+        if h > ch then  // woops, too big
+        begin
+          h := ch;
+          w := Trunc(ch * xyaspect);
+        end;
+      end
+      else
+      begin
+        h := ch;
+        w := Trunc(ch * xyaspect);
+        if w > cw then  // woops, too big
+        begin
+          w := cw;
+          h := Trunc(cw / xyaspect);
+        end;
+      end;
+    end
+    else
+    begin
+      w := cw;
+      h := ch;
+    end;
+  end;
+
+  Result.Left := 0;
+  Result.Top := 0;
+  result.Right := w;
+  Result.Bottom := h;
+
+  if Center then
+    OffsetRect(Result, (cw - w) div 2, (ch - h) div 2);
+end;
+
+
 function TDesignBoxCanvas.StretchDraw(ARect: TRectF; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
   BeginUpdate;
@@ -2658,8 +2741,9 @@ begin
   Width := 50;
   Height := 50;
   FBuffer := TBitmap.Create;
-
   FDesignBox := (AOwner as TDesignBox);
+  FBackground := TPicture.Create;
+  FBackgroundPos := bgCentre;
   FBrush := TBrush.Create;
   FFont := TFont.Create;
   FPen := TPen.Create;
@@ -2693,6 +2777,7 @@ end;
 destructor TDesignBoxCanvas.Destroy;
 begin
   FBuffer.Free;
+  FBackground.Free;
   FBrush.Free;
   FFont.Free;
   FPen.Free;
@@ -2732,6 +2817,21 @@ begin
   begin
     if Supports(AItem, IPenObject, AIntf) then
       AIntf.Pen.Assign(FPen);
+  end;
+end;
+
+procedure TDesignBoxCanvas.SetBackground(const Value: TPicture);
+begin
+  fBackground.Assign(Value);
+  FDesignBox.Redraw;
+end;
+
+procedure TDesignBoxCanvas.SetBackgroundPos(const Value: TDesignBoxBackgroundPosition);
+begin
+  if fBackgroundPos <> Value then
+  begin
+    fBackgroundPos := Value;
+    FDesignBox.Redraw;
   end;
 end;
 
