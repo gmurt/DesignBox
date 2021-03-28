@@ -365,6 +365,8 @@ type
     procedure SetBackground(const Value: TPicture);
     procedure SetBackgroundPos(const Value: TDesignBoxBackgroundPosition);
     function GetDestRect(aOriginalSize, aClientSize: TSize; Stretch, Proportional, Center: boolean): TRect;
+    procedure SaveBackgroundToJson(const aJson: TJsonObject);
+    procedure LoadBackgroundFromJson(const aJson: TJsonObject);
 
   protected
     procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
@@ -373,6 +375,8 @@ type
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure DrawBackground(const aRect: TRect);
+    procedure SaveToJson(const aJson: TJsonObject);
+    procedure LoadFromJson(const aJson: TJsonObject);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -653,6 +657,7 @@ end;
 procedure TDesignBox.Clear;
 begin
   FItems.Clear;
+  FCanvas.Background := nil;
   Redraw;
 end;
 
@@ -822,6 +827,11 @@ begin
       fBackgroundColor := StringToColor(AJson.values['backgroundColor'].value);
     if assigned(AJson.Values['pageColor']) then
       fPageColor := StringToColor(AJson.values['pageColor'].value);
+    if assigned(AJson.Values['mode']) then
+      fMode := TRttiEnumerationType.GetValue<TDesignBoxMode>(AJson.Values['mode'].value);
+    if assigned(AJson.Values['drawClass']) then
+      fDrawClass := TDesignBoxBaseItemClass(GetClass(AJson.Values['drawClass'].Value));
+    FCanvas.LoadFromJson(AJson);
     FItems.LoadFromJson(AJson);
   finally
     EndUpdate;
@@ -1247,6 +1257,7 @@ procedure TDesignBox.SaveToStream(AStream: TStream);
 var
   AJson: TJsonObject;
   AStringStream: TStringStream;
+
 begin
   AJson := TJsonObject.Create;
   try
@@ -1256,6 +1267,9 @@ begin
     AJson.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
     AJson.AddPair('backgroundColor', ColorToString(FBackgroundColor));
     AJson.AddPair('pageColor', ColorToString(fPageColor));
+    AJson.AddPair('mode', TRttiEnumerationType.GetName(fMode));
+    AJson.AddPair('drawClass', fDrawClass.ClassName);
+    FCanvas.SaveToJson(AJson);
     FItems.SaveToJson(AJson);
     AStringStream := TStringStream.Create(AJson.ToJSON);
     try
@@ -2678,6 +2692,45 @@ begin
     OffsetRect(Result, (cw - w) div 2, (ch - h) div 2);
 end;
 
+procedure TDesignBoxCanvas.LoadFromJson(const aJson: TJsonObject);
+begin
+  LoadBackgroundFromJson(aJson);
+end;
+
+procedure TDesignBoxCanvas.LoadBackgroundFromJson(const aJson: TJsonObject);
+var
+  AStream: TMemoryStream;
+  AEncoded: TStringStream;
+  AType: string;
+  AGraphic: TGraphic;
+  jBackgroundImage: TJSONObject;
+begin
+  if assigned(AJson.Values['background']) then
+  begin
+    jBackgroundImage := AJson.Values['background'] as TJSONObject;
+
+    AStream := TMemoryStream.Create;
+    AEncoded := TStringStream.Create((jBackgroundImage.Values['data'].Value));
+    try
+      AEncoded.Position := 0;
+      TNetEncoding.Base64.Decode(AEncoded, AStream);
+      AStream.Position := 0;
+      AType := jBackgroundImage.Values['type'].Value.ToLower;
+      AGraphic := nil;
+      if AType = TPngImage.ClassName.ToLower then AGraphic := TPngImage.Create;
+      if AType = TBitmap.ClassName.ToLower then AGraphic := TBitmap.Create;
+      if AType = TJPEGImage.ClassName.ToLower then AGraphic := TJPEGImage.Create;
+      if AGraphic <> nil then
+      begin
+        AGraphic.LoadFromStream(AStream);
+        FBackground.Assign(AGraphic);
+      end;
+    finally
+      AStream.Free;
+      AEncoded.Free;
+    end;
+  end;
+end;
 
 function TDesignBoxCanvas.StretchDraw(ARect: TRectF; AGraphic: TGraphic): TDesignBoxItemGraphic;
 begin
@@ -2817,6 +2870,36 @@ begin
   begin
     if Supports(AItem, IPenObject, AIntf) then
       AIntf.Pen.Assign(FPen);
+  end;
+end;
+
+procedure TDesignBoxCanvas.SaveToJson(const aJson: TJsonObject);
+begin
+  SaveBackgroundToJson(aJson);
+end;
+
+procedure TDesignBoxCanvas.SaveBackgroundToJson(const aJson: TJsonObject);
+var
+  aStream, aEncoded: TStream;
+  jBackgroundImage: TJsonObject;
+begin
+  if assigned(fBackground.Graphic) and (not fBackground.Graphic.Empty) then
+  begin
+    AStream := TMemoryStream.Create;
+    AEncoded := TStringStream.Create;
+    try
+      FBackground.SaveToStream(AStream);
+      AStream.Position := 0;
+      TNetEncoding.Base64.Encode(AStream, AEncoded);
+      jBackgroundImage := TJsonObject.Create;
+      AJson.AddPair('background', jBackgroundImage);
+      // match the storage format of the TDesignBoxGraphicItem
+      jBackgroundImage.AddPair('type', FBackground.Graphic.ClassName);
+      jBackgroundImage.AddPair('data', TStringStream(AEncoded).DataString);
+    finally
+      AStream.Free;
+      AEncoded.Free;
+    end;
   end;
 end;
 
