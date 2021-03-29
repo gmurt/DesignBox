@@ -9,7 +9,7 @@ uses
 type
   TDesignBoxMode = (dbmSelect, dbmDraw);
 
-  TItemOption = (canSize, canMove, canDelete, canSelect);
+  TItemOption = (canSize, canMove, canDelete, canSelect, canEdit);
   TItemOptions = set of TItemOption;
 
   TDesignBox = class;
@@ -412,6 +412,14 @@ type
     property Pen: TPen read FPen write SetPen;
   end;
 
+  TDesignBoxMouseInteractionOptions = class
+  private
+    fDragSelect : boolean;
+    procedure SetDragSelect(const Value: boolean);
+  published
+    constructor Create;
+    property DragSelect: boolean read fDragSelect write SetDragSelect default True;
+  end;
 
   TDesignBox = class(TScrollingWinControl)
   private
@@ -432,6 +440,7 @@ type
     FUpdateCount: integer;
     FAfterDrawItem: TDesignBoxAfterDrawEvent;
     FBorderStyle: TBorderStyle;
+    fMouseInteraction: TDesignBoxMouseInteractionOptions;
     function GetSelectedItems: TDesignBoxItemList;
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
@@ -450,6 +459,7 @@ type
     procedure WMNCHitTest(var Message: TWMNCHitTest); message WM_NCHITTEST;
     procedure CMCtl3DChanged(var Message: TMessage); message CM_CTL3DCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
+    procedure SetMouseInteraction(const Value: TDesignBoxMouseInteractionOptions);
 
   protected
 
@@ -512,6 +522,7 @@ type
     property GridOptions: TDesignBoxGridOptions read FGridOptions write SetGridOptions;
     property PopupMenu;
     property RulerOptions: TDesignBoxRulerOptions read fRulerOptions write SetRulerOptions;
+    property MouseInteraction: TDesignBoxMouseInteractionOptions read fMouseInteraction write SetMouseInteraction;
     property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
     property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
@@ -701,6 +712,7 @@ begin
   FUndoList := TDesignUndoList.Create(Self);
   FGridOptions := TDesignBoxGridOptions.Create(Self);
   FRulerOptions := TDesignBoxRulerOptions.Create(Self);
+  fMouseInteraction := TDesignBoxMouseInteractionOptions.Create;
 
   FSelectedItems.OwnsObjects := False;
   FPageSizeMM.Width := 100;
@@ -746,6 +758,7 @@ begin
   FUndoList.Free;
   FGridOptions.Free;
   FRulerOptions.Free;
+  fMouseInteraction.Free;
   inherited;
 end;
                     {
@@ -878,7 +891,7 @@ begin
     end;
   end;
 
-  FDragging := True;
+  FDragging := (FDesignBox.MouseInteraction.dragSelect);
   FMouseXY := Point(X, Y);
 
   if (AItem <> nil) and (AItem.Selected) and (Assigned(FDesignBox.FOnSelectItem)) then
@@ -1118,7 +1131,6 @@ begin
       tz := ACanvas.TextExtent(AUnitStr);
       ACanvas.Brush.Style := bsClear;
       ACanvas.TextRect(RectOrigin, AUnitStr, [tfCenter, tfVerticalCenter, tfSingleLine]);
-      //ACanvas.TextOut((rectOrigin.Width div 2) - (tz.Width div 2), (rectOrigin.Height div 2) - (tz.Height div 2), fRulerOptions.Units);
     end;
 
   finally
@@ -1386,6 +1398,11 @@ end;
 procedure TDesignBox.SetGridOptions(const Value: TDesignBoxGridOptions);
 begin
   FGridOptions.Assign(Value);
+end;
+
+procedure TDesignBox.SetMouseInteraction(const Value: TDesignBoxMouseInteractionOptions);
+begin
+  fMouseInteraction := Value;
 end;
 
 procedure TDesignBox.SetPageColor(const Value: TColor);
@@ -2167,7 +2184,7 @@ begin
 
   inherited DrawSelectedRect(ACanvas);
 
-  if FSelected then
+  if FSelected and (canSize in fOptions) then
   begin
     aRect := RectPixels;
     InflateRect(aRect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE); // duplicate the inherited version
@@ -3129,6 +3146,19 @@ begin
   end;
 end;
 
+
+{ TDesignBoxMouseInteractionOptions }
+
+constructor TDesignBoxMouseInteractionOptions.Create;
+begin
+  inherited Create;
+  fDragSelect := TRUE;
+end;
+
+procedure TDesignBoxMouseInteractionOptions.SetDragSelect(const Value: boolean);
+begin
+  fDragSelect := Value;
+end;
 
 initialization
   RegisterClass(TDesignBoxItemText);
