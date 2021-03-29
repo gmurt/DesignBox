@@ -296,6 +296,10 @@ type
     procedure SetFont(const Value: TDesignFont);
     procedure internalHandleRulerFontChanged(Sender: TObject);
     procedure SetMeasurementSystem(const Value: TDesignMeasurementSystem);
+  protected
+    const
+      UNIT_NAMES: array[TDesignMeasurementSystem] of string = ('mm', 'cm', 'in');
+
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
@@ -1107,7 +1111,7 @@ begin
     ACanvas.Pen.Color := clWhite;
     rectOrigin := Rect(ALeftRuler.Left, ATopRuler.Top, ALeftRuler.Right, ATopRuler.Bottom);
     ACanvas.Rectangle(rectOrigin);
-     if fRulerOptions.ShowUnits then
+    if fRulerOptions.ShowUnits then
     begin
       rectOrigin := Rect(ALeftRuler.Left, ATopRuler.Top, ALeftRuler.Right, ATopRuler.Bottom);
       AUnitStr := fRulerOptions.Units;
@@ -2526,11 +2530,11 @@ begin
   fForegroundColor := clBlack;
   fVisible := true;
   fShowUnits := false; // backward compatibility
-  fUnits := 'mm'; // changing this would mean changing the designbox as a whole to not use mm
   fFont := TDesignFont.Create;
   fFont.assign(ADesignBox.Font);
   fFont.OnChange := internalHandleRulerFontChanged;
-  fMeasurementSystem := dbImperial;
+  fMeasurementSystem := dbMetric;
+  fUnits := UNIT_NAMES[FMeasurementSystem];
 end;
 
 destructor TDesignBoxRulerOptions.Destroy;
@@ -2609,13 +2613,11 @@ begin
 end;
 
 procedure TDesignBoxRulerOptions.SetMeasurementSystem(const Value: TDesignMeasurementSystem);
-const
-  UNITS: array[TDesignMeasurementSystem] of string = ('mm', 'cm', 'in');
 begin
   if (fMeasurementSystem <> Value) then
   begin
     fMeasurementSystem := Value;
-    fUnits := UNITS[fMeasurementSystem];
+    fUnits := UNIT_NAMES[fMeasurementSystem];
     fDesignBox.Invalidate;
   end;
 end;
