@@ -272,7 +272,7 @@ type
 
   end;
 
-
+  TDesignMeasurementSystem = (dbMetric, dbMetricCent, dbImperial);
 
   TDesignBoxRulerOptions = class(TPersistent)
   private
@@ -284,6 +284,7 @@ type
     fRulerWidthPx : integer;
     fShowUnits: boolean;
     fUnits: string;
+    fMeasurementSystem : TDesignMeasurementSystem;
     fFont : TDesignFont;
     procedure SetBackgroundColor(const Value: TColor);
     procedure SetForegroundColor(const Value: TColor);
@@ -294,6 +295,7 @@ type
     procedure SetUnits(const Value: string);
     procedure SetFont(const Value: TDesignFont);
     procedure internalHandleRulerFontChanged(Sender: TObject);
+    procedure SetMeasurementSystem(const Value: TDesignMeasurementSystem);
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
@@ -308,6 +310,7 @@ type
     property HeightPx : integer read GetHeightPx;
     property ShowUnits: boolean read fShowUnits write SetShowUnits default false;
     property Units: string read fUnits write SetUnits;
+    property MeasurementSystem: TDesignMeasurementSystem read fMeasurementSystem write SetMeasurementSystem;
     property Font: TDesignFont read fFont write SetFont;
   end;
 
@@ -983,17 +986,32 @@ end;
 
 procedure TDesignBox.DrawRulers(ACanvas: TCanvas);
 var
-  AMm: integer;
+  aUnit: integer; // if imperial, these are 1/16's of an inch
+  aDisplayUnit : integer;
+  aPixels: integer;
   AMarkSize: integer;
   tz : TSize;
   RectOrigin: TRect;
   ATopRuler: TRect;
   ALeftRuler: TRect;
   AUnitStr: string;
+  LittleMarkFreq : integer;
+  BigMarkFreq : integer;
 const
   C_BIG_MARK = 8;
   C_LITTLE_MARK = 4;
 begin
+
+  case FRulerOptions.MeasurementSystem of
+    dbImperial: begin      // 1/16's of an inch
+      LittleMarkFreq := 2;
+      BigMarkFreq := 16;
+    end;
+    else begin        // 1mm
+      LittleMarkFreq := 2; //mm
+      BigMarkFreq := 10;   // mm
+    end;
+  end;
 
   ACanvas.Brush.Color := fRulerOptions.BackgroundColor;
   ACanvas.Pen.Style := psClear;
@@ -1016,44 +1034,72 @@ begin
   ACanvas.Font.Assign(FRulerOptions.Font); // likely be the same as the DesignBox, but *could* be different if we allow it
   try
     ACanvas.Font.Color := fRulerOptions.ForegroundColor;
-    AMm := 1;
+    aUnit := 1;  // either 1mm or 1/16th inch
+    aPixels := 0;
     ACanvas.Brush.Style := bsClear;
-    while MmToPixels(AMm) < ATopRuler.Width do
+    while aPixels < ATopRuler.Width do
     begin
+      // convert inches units to MM so we can still draw the lines in the right place
+      if FRulerOptions.fMeasurementSystem = dbImperial then
+      begin
+        aPixels := MMtoPixels((aUnit / 16) * 25.4); // convert a 1/16in unit to mm & then to pixels
+        aDisplayUnit := aUnit div 16; // display units are inches
+      end
+      else begin
+        aPixels := MMtoPixels(aUnit); // usual mm 2 px conversion
+        if fRulerOptions.MeasurementSystem = dbMetricCent then
+          aDisplayUnit := aUnit div 10 // centimetres display units
+        else
+          aDisplayUnit := aUnit;
+      end;
       AMarkSize := 0;
-      if (AMm) mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
-      if (AMm) mod 10 = 0 then AMarkSize := C_BIG_MARK;
+      if (aUnit) mod LittleMarkFreq = 0 then AMarkSize := C_LITTLE_MARK;
+      if (aUnit mod BigMarkFreq = 0) and (FRulerOptions.fMeasurementSystem = dbImperial) then AMarkSize := C_BIG_MARK;
+      if (aUnit) mod BigMarkFreq = 0 then AMarkSize := C_BIG_MARK;
       if AMarkSize > 0 then
       begin
-        ACanvas.Polyline([Point(MmToPixels(AMm)+ATopRuler.Left, ATopRuler.Bottom-AMarkSize),
-                          Point(MmToPixels(AMm)+ATopRuler.Left, ATopRuler.Bottom)]);
+        ACanvas.Polyline([Point(aPixels + ATopRuler.Left, ATopRuler.Bottom-AMarkSize),
+                          Point(aPixels + ATopRuler.Left, ATopRuler.Bottom)]);
         if AMarkSize = C_BIG_MARK then
         begin
-          tz := ACanvas.TextExtent(AMm.ToString);
-          ACanvas.TextOut((MmToPixels(AMm)+ATopRuler.Left) - (tz.Width div 2), ((ATopRuler.Bottom-tz.Height) - (AMarkSize+1)), AMm.ToString);
+          tz := ACanvas.TextExtent(aDisplayUnit.ToString);
+          ACanvas.TextOut((aPixels + ATopRuler.Left) - (tz.Width div 2), ((ATopRuler.Bottom - tz.Height) - (AMarkSize + 1)), aDisplayUnit.ToString);
         end;
       end;
-      Inc(AMm);
+      Inc(aUnit);
     end;
 
-    AMm := 1;
-    while MmToPixels(AMm) < ALeftRuler.Height do
+    aUnit := 1;
+    while MmToPixels(aUnit) < ALeftRuler.Height do
     begin
+      // convert inches units to MM so we can still draw the lines in the right place
+      if FRulerOptions.fMeasurementSystem = dbImperial then
+      begin
+        aPixels := MMtoPixels((aUnit / 16) * 25.4); // convert a single "unit" to mm
+        aDisplayUnit := aUnit div 16;
+      end
+      else begin
+        aPixels := MMtoPixels(aUnit);
+        if fRulerOptions.MeasurementSystem = dbMetricCent then
+          aDisplayUnit := aUnit div 10
+        else
+          aDisplayUnit := aUnit;
+      end;
       AMarkSize := 0;
-      if AMm mod 2 = 0 then AMarkSize := C_LITTLE_MARK;
-      if AMm mod 10 = 0 then AMarkSize := C_BIG_MARK;
+      if aUnit mod LittleMarkFreq = 0 then AMarkSize := C_LITTLE_MARK;
+      if (aUnit mod BigMarkFreq = 0) and (FRulerOptions.fMeasurementSystem = dbImperial) then AMarkSize := C_BIG_MARK;
+      if aUnit mod BigMarkFreq = 0 then AMarkSize := C_BIG_MARK;
       if AMarkSize > 0 then
       begin
-        ACanvas.Polyline([Point(ALeftRuler.Right-AMarkSize, MmToPixels(AMm)+ALeftRuler.Top),
-                          Point(ALeftRuler.Right, MmToPixels(AMm)+ALeftRuler.Top)]);
+        ACanvas.Polyline([Point(ALeftRuler.Right-AMarkSize, aPixels+ALeftRuler.Top),
+                          Point(ALeftRuler.Right, aPixels+ALeftRuler.Top)]);
         if AMarkSize = C_BIG_MARK then
         begin
-          tz := ACanvas.TextExtent(AMm.ToString);
-
-          ACanvas.TextOut((ALeftRuler.Right-tz.width) - (AMarkSize+1), (MmToPixels(AMm)+ALeftRuler.Top) - (tz.Height div 2), AMm.ToString);
+          tz := ACanvas.TextExtent(aDisplayUnit.ToString);
+          ACanvas.TextOut((ALeftRuler.Right-tz.width) - (AMarkSize+1), (aPixels+ALeftRuler.Top) - (tz.Height div 2), aDisplayUnit.ToString);
         end;
       end;
-      Inc(AMm);
+      Inc(aUnit);
     end;
 
     // Draw the Units (or whatever ?)
@@ -2484,7 +2530,8 @@ begin
   fFont := TDesignFont.Create;
   fFont.assign(ADesignBox.Font);
   fFont.OnChange := internalHandleRulerFontChanged;
- end;
+  fMeasurementSystem := dbImperial;
+end;
 
 destructor TDesignBoxRulerOptions.Destroy;
 begin
@@ -2516,6 +2563,8 @@ begin
     fUnits := AJson.Values['rulerUnits'].value;
   if assigned(AJson.Values['rulerFont']) then
     FFont.LoadFromJson(TJsonObject(AJson.Values['rulerFont']));
+  if assigned(AJson.Values['measurementSystem']) then
+    fMeasurementSystem := TRttiEnumerationType.GetValue<TDesignMeasurementSystem>(AJson.Values['measurementSystem'].value);
 end;
 
 procedure TDesignBoxRulerOptions.internalHandleRulerFontChanged(Sender: TObject);
@@ -2530,6 +2579,7 @@ begin
   AJson.AddPair('rulerBackgroundColor', ColorToString(fBackgroundColor));
   AJson.AddPair('rulerShowUnits', TJsonBool.Create(fShowUnits));
   AJson.AddPair('rulerUnits', fUnits);
+  AJson.AddPair('measurementSystem', TRttiEnumerationType.GetName(fMeasurementSystem));
   var JFont := TJsonObject.Create;
   fFont.SaveToJson(JFont);
   AJson.AddPair('rulerFont', JFont);
@@ -2554,6 +2604,18 @@ begin
   if fForegroundColor <> Value then
   begin
     fForegroundColor := Value;
+    fDesignBox.Invalidate;
+  end;
+end;
+
+procedure TDesignBoxRulerOptions.SetMeasurementSystem(const Value: TDesignMeasurementSystem);
+const
+  UNITS: array[TDesignMeasurementSystem] of string = ('mm', 'cm', 'in');
+begin
+  if (fMeasurementSystem <> Value) then
+  begin
+    fMeasurementSystem := Value;
+    fUnits := UNITS[fMeasurementSystem];
     fDesignBox.Invalidate;
   end;
 end;
