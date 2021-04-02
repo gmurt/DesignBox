@@ -102,7 +102,6 @@ type
     procedure Changed;
     procedure SetLeftMM(const Value: Extended);
     procedure SetTopMM(const Value: Extended);
-    procedure SetSelectedItem(const Value: Boolean);
     procedure SetOptions(const Value: TItemOptions);
     function GetWidthMM: Extended;
     procedure SetWidthMM(const Value: Extended);
@@ -112,6 +111,7 @@ type
     procedure SetCenterPtMm(const Value: TPointF);
     procedure SetVisible(const Value: boolean);
   protected
+    procedure SetSelectedItem(const Value: Boolean); virtual;
     function RectPixels: TRect; virtual;
     function RectMM: TRectF;
     function BoundsRect: TRect;
@@ -1333,6 +1333,8 @@ begin
     AJson.AddPair('drawClass', fDrawClass.ClassName);
     FCanvas.SaveToJson(AJson);
     FItems.SaveToJson(AJson);
+
+
     AStringStream := TStringStream.Create(AJson.ToJSON);
     try
       AStringStream.Position := 0;
@@ -1340,6 +1342,7 @@ begin
     finally
       AStringStream.Free;
     end;
+
   finally
     AJson.Free;
   end;
@@ -1588,7 +1591,7 @@ begin
     ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Width := 1;
-    ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right + 1, ARect.Bottom + 1);
+    ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
   end;
 end;
 
