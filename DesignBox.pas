@@ -261,7 +261,7 @@ type
     function Add(AClass: TDesignBoxBaseItemClass; ABoundsMm: TRectF): TDesignBoxBaseItem; overload;
     function ItemAtPos(x, y: integer): TDesignBoxBaseItem;
     procedure LoadFromJson(AJson: TJsonObject);
-    procedure SaveToJson(AJson: TJsonObject);
+    procedure SaveToJson(AJson: TJsonObject; const VisualOnly: boolean; const baseClass: TDesignBoxBaseItemClass);
     procedure DeleteSelected;
     property SelectedCount: integer read GetSelectedCount;
     procedure DeselectAll;
@@ -479,6 +479,8 @@ type
     procedure BeginUpdate;
     procedure Clear;
     procedure Endupdate;
+    function  ToJsonObject: TJsonObject; overload;
+    function  toJsonObject(const VisualOnly: boolean; const baseClass: TDesignBoxBaseItemClass): TJsonObject; overload;
     procedure SaveToStream(AStream: TStream);
     procedure LoadFromStream(AStream: TStream);
     procedure LoadFromJson(AJsonData: string);
@@ -1321,20 +1323,8 @@ var
   AStringStream: TStringStream;
 
 begin
-  AJson := TJsonObject.Create;
+  AJson := toJsonObject;
   try
-    FRulerOptions.SaveToJsonObject(AJSon);
-    FGridOptions.SaveToJsonObject(AJson);
-    AJson.AddPair('pageWidthMM', TJsonNumber.Create(PageWidthMM));
-    AJson.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
-    AJson.AddPair('backgroundColor', ColorToString(FBackgroundColor));
-    AJson.AddPair('pageColor', ColorToString(fPageColor));
-    AJson.AddPair('mode', TRttiEnumerationType.GetName(fMode));
-    AJson.AddPair('drawClass', fDrawClass.ClassName);
-    FCanvas.SaveToJson(AJson);
-    FItems.SaveToJson(AJson);
-
-
     AStringStream := TStringStream.Create(AJson.ToJSON);
     try
       AStringStream.Position := 0;
@@ -1342,7 +1332,6 @@ begin
     finally
       AStringStream.Free;
     end;
-
   finally
     AJson.Free;
   end;
@@ -1456,11 +1445,30 @@ begin
 end;
 
 
+function TDesignBox.ToJsonObject(const VisualOnly: boolean; const baseClass: TDesignBoxBaseItemClass): TJsonObject;
+begin
+  result := TJsonObject.Create;
+  FRulerOptions.SaveToJsonObject(result);
+  FGridOptions.SaveToJsonObject(result);
+  result.AddPair('pageWidthMM', TJsonNumber.Create(PageWidthMM));
+  result.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
+  result.AddPair('backgroundColor', ColorToString(FBackgroundColor));
+  result.AddPair('pageColor', ColorToString(fPageColor));
+  result.AddPair('mode', TRttiEnumerationType.GetName(fMode));
+  result.AddPair('drawClass', fDrawClass.ClassName);
+  FCanvas.SaveToJson(result);
+  FItems.SaveToJson(result, VisualOnly, baseClass);
+end;
+
+function TDesignBox.ToJsonObject: TJsonObject;
+begin
+  result := toJsonObject(False {all}, TDesignBoxBaseItem {all});
+end;
+
 procedure TDesignBox.Undo;
 begin
   fUndoList.Undo;
 end;
-
 
 procedure TDesignBox.WMEraseBackground(var message: TMessage);
 begin
@@ -1955,7 +1963,7 @@ begin
   end;
 end;
 
-procedure TDesignBoxItemList.SaveToJson(AJson: TJsonObject);
+procedure TDesignBoxItemList.SaveToJson(AJson: TJsonObject; const VisualOnly: boolean; const baseClass: TDesignBoxBaseItemClass);
 var
   AItems: TJsonArray;
   AObj: TJsonObject;
@@ -1965,9 +1973,12 @@ begin
   AJson.AddPair('items', AItems);
   for AItem in Self do
   begin
-    AObj := TJsonObject.Create;
-    AItem.SaveToJson(AObj);
-    AItems.Add(AObj);
+    if ((AItem.Visible) or (not VisualOnly)) and (AItem is baseClass) then
+    begin
+      AObj := TJsonObject.Create;
+      AItem.SaveToJson(AObj);
+      AItems.Add(AObj);
+    end;
   end;
 end;
 
