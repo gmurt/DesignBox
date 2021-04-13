@@ -15,7 +15,8 @@ type
   TDesignBox = class;
   TDesignBoxBaseItem = class;
 
-  TDesignBoxAfterDrawEvent = reference to procedure(Sender: TObject; aNewItem : TDesignBoxBaseItem; aIndex: integer);  // triggered after MANUALLY drawing an item
+  TDesignBoxAfterDrawEvent = procedure(Sender: TObject; aNewItem : TDesignBoxBaseItem; aIndex: integer) of object;  // triggered after MANUALLY drawing an item
+  TDesignBoxAfterEditEvent = procedure(Sender: TObject; aItem : TDesignBoxBaseItem) of object; // for text editing changes at the moment
 
   IBrushObject = interface
     ['{66B92A59-B773-4DE2-97DF-34CA29245A0E}']
@@ -36,6 +37,13 @@ type
     function GetPen: TPen;
     procedure SetPen(const Value: TPen);
     property Pen: TPen read GetPen write SetPen;
+  end;
+
+  IDesignTextEditor = interface
+    ['{B31CA1D5-D905-4F58-A460-8BE4A77871D7}']
+    function GetText: string;
+    procedure SetText(const Value: string);
+    property Text : string read GetText write SetText;
   end;
 
   TDesignBoxSelectItemEvent = procedure(Sender: TObject; AItem: TDesignBoxBaseItem) of object;
@@ -111,6 +119,7 @@ type
     procedure SetCenterPtMm(const Value: TPointF);
     procedure SetVisible(const Value: boolean);
   protected
+    property DesignBoxParent: TDesignBox read fDesignBox;
     procedure SetSelectedItem(const Value: Boolean); virtual;
     function RectPixels: TRect; virtual;
     function RectMM: TRectF;
@@ -193,12 +202,13 @@ type
     property Brush: TBrush read GetBrush write SetBrush;
   end;
 
-  TDesignBoxItemText = class(TDesignBoxItemFilledShape, IFontObject)
+  TDesignBoxItemText = class(TDesignBoxItemFilledShape, IFontObject, IDesignTextEditor)
   private
     FText: string;
     FFont: TDesignFont;
     function GetFont: TFont;
     procedure DoFontChange(Sender: TObject);
+    function GetText: string;
     procedure SetText(const AText: string);
     procedure SetFont(const Value: TFont);
   protected
@@ -208,11 +218,9 @@ type
     destructor Destroy; override;
     procedure SaveToJson(AJson: TJsonObject); override;
     procedure LoadFromJson(AJson: TJsonObject); override;
-    property Text: string read FText write SetText;
+    property Text: string read GetText write SetText;
     property Font: TFont read GetFont write SetFont;
   end;
-
-
 
   TDesignBoxItemEllipse = class(TDesignBoxItemFilledShape)
   protected
@@ -416,6 +424,9 @@ type
   private
     fDragSelect : boolean;
     procedure SetDragSelect(const Value: boolean);
+  protected
+    procedure LoadFromJsonObject(AJson: TJsonObject);
+    procedure SaveToJsonObject(AJson: TJsonObject);
   published
     constructor Create;
     property DragSelect: boolean read fDragSelect write SetDragSelect default True;
@@ -439,8 +450,13 @@ type
     FRulerOptions: TDesignBoxRulerOptions;
     FUpdateCount: integer;
     FAfterDrawItem: TDesignBoxAfterDrawEvent;
+    FAfterEditItem: TDesignBoxAfterEditEvent;
+    FAfterScale: TNotifyEvent;
     FBorderStyle: TBorderStyle;
     fMouseInteraction: TDesignBoxMouseInteractionOptions;
+    fScalePercent: integer; // 100 = 100% = normal size - interpreted by Scale property as Single i.e "1.00"
+    fWantTabs: boolean;
+    fAllowTextEdit: boolean;
     function GetSelectedItems: TDesignBoxItemList;
     procedure SetBackgroundColor(const Value: TColor);
     procedure RecordSnapshot;
@@ -460,6 +476,10 @@ type
     procedure CMCtl3DChanged(var Message: TMessage); message CM_CTL3DCHANGED;
     procedure CMVisibleChanged(var Message: TMessage); message CM_VISIBLECHANGED;
     procedure SetMouseInteraction(const Value: TDesignBoxMouseInteractionOptions);
+    function GetScale: extended;
+    procedure SetScale(const Value: extended);
+    procedure SetWantTabs(const Value: boolean);
+    procedure SetAllowTextEdit(const Value: boolean);
 
   protected
 
@@ -473,6 +493,16 @@ type
     procedure WMVScroll(var Message: TWMVScroll); message WM_VSCROLL;
 
     procedure WMEraseBackground(var message: TMessage); message WM_ERASEBKGND;
+
+    procedure WMSetFocus(var Message: TWMSetFocus); message WM_SETFOCUS;
+    procedure WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
+
+
+    procedure CNKeyDown(var Message: TWMKeyDown); message CN_KEYDOWN;
+    procedure CNKeyUp(var Message: TWMKeyUp); message CN_KEYUP;
+    procedure KeyDown(var Key: Word; Shift: TShiftState); override;
+    procedure KeyPress(var Key: Char); override;
+
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -516,6 +546,7 @@ type
     procedure SaveAsPNG(const aStream: TStream; const aTransparent: boolean); overload;
 
   published
+    property AllowTextEdit : boolean read fAllowTextEdit write SetAllowTextEdit default True;
     property Align;
     property BackgroundColor: TColor read fBackgroundColor write SetBackgroundColor default clSilver;
     property BorderStyle: TBorderStyle read FBorderStyle write SetBorderStyle default bsSingle;
@@ -527,12 +558,19 @@ type
     property MouseInteraction: TDesignBoxMouseInteractionOptions read fMouseInteraction write SetMouseInteraction;
     property PageWidthMM: integer read GetPageWidthMM write SetPageWidthMM;
     property PageHeightMM: integer read GetPageHeightMM write SetPageHeightMM;
+    property WantTabs: boolean read fWantTabs write SetWantTabs default True;
+    property Scale: extended read GetScale write SetScale;
     property OnChange: TNotifyEvent read FOnChange write FOnChange;
+    property OnKeyDown;
+    property OnKeyPress;
+    property OnKeyUp;
     property OnMouseDown;
     property OnMouseMove;
     property OnMouseUp;
     property OnSelectItem: TDesignBoxSelectItemEvent read FOnSelectItem write FOnSelectItem;
     property AfterDrawItem: TDesignBoxAfterDrawEvent read fAfterDrawItem write fAfterDrawItem;
+    property AfterEditItem: TDesignBoxAfterEditEvent read fAfterEditItem write fAfterEditItem;
+    property AfterScale : TNotifyEvent read fAfterScale write fAfterScale;
     property OnResize;
   end;
 
@@ -545,10 +583,12 @@ function MuToMM(AValue: integer) : Extended;
 
 implementation
 
-uses System.NetEncoding, PngImage, Math, System.UITypes, System.RTTI;
+uses System.NetEncoding, PngImage, Math, System.UITypes, System.RTTI,
+  Vcl.Clipbrd;
 
 const
   C_HIGHLIGHT_COLOR = clHotlight;
+  C_UNFOCUSED_HIGHLIGHT_COLOR = clDkGray;
   C_SELECTBOX_INFLATE = 0;
   C_DPI = 300;
   C_MM_PER_INCH = 25.4;
@@ -697,6 +737,82 @@ begin
       DockClients[I].Visible := Visible;
 end;
 
+procedure TDesignBox.CNKeyDown(var Message: TWMKeyDown);
+var
+  KeyCode : word;
+  aMoveBy: TPoint;
+  AItem: TDesignBoxBaseItem;
+  cMoveAmount : integer;
+  Shift: TShiftState;
+  idx, saveIdx : integer;
+  Found, NoMoreLeft : boolean;
+begin
+  KeyCode := Message.CharCode;
+  Shift := KeyDataToShiftState(Message.KeyData);
+  // so this works in principle - just need to get arrow keys working via CNKeyDown, CNKeyUp message I think.
+  if ssCtrl in Shift then
+    cMoveAmount := MMToPixels(1)
+  else
+    cMoveAmount := MMtoPixels(FGridOptions.SizeMm);
+  // if one item selected, lets move to the next item (don't use fSelectedItems, we need the Getter method to be called to populate the list
+  if (KeyCode = VK_TAB) and (SelectedItems.Count = 1) and (Items.Count > 1) and WantTabs then
+  begin
+    { Extract this bit into FItems.SelectNext(idx);  ???? }
+    idx := FItems.IndexOf(SelectedItems[0]);
+    saveIdx := idx;
+    // Searchng for the next Selected Item
+    repeat
+      if ssShift in Shift then
+        dec(idx) // shift-tab goes backwards
+      else
+        inc(idx);
+      if (idx < 0) and (ssShift in Shift) then
+        idx := Pred(fItems.Count) // backwards from the start = move to the end
+      else
+      if (idx = FItems.Count) and (not (ssShift in Shift)) then
+        idx := 0; // circle back to the start;
+      AItem := FItems[idx];
+      Found := (canSelect in AItem.Options) and (AItem.Visible);
+      NoMoreLeft := (saveIdx = idx); //
+    until found or NoMoreLeft;
+    if found then
+    begin
+      FItems.DeselectAll;
+      FItems.Items[idx].Selected := TRUE;
+      if assigned(fOnSelectItem) then
+        FOnSelectItem(Self, AItem);
+      Redraw;
+    end;
+  end else
+  if (KeyCode in [VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT]) and (SelectedItems.Count > 0) then
+  begin
+    // let's move the SelectedItems a set amount
+    case KeyCode of
+      VK_UP    : aMoveBy := Point(0, -cMoveAmount);
+      VK_DOWN  : aMoveBy := Point(0, cMoveAmount);
+      VK_LEFT  : aMoveBy := Point(-cMoveAmount, 0);
+      VK_RIGHT : aMoveBy := Point(cMoveAmount, 0);
+    end;
+    for AItem in SelectedItems do
+    begin
+      if canMove in AItem.Options then
+      begin
+        AItem.FDrawOffset := aMoveBy;
+        Aitem.UpdateToDragPosition;
+      end;
+    end;
+    Redraw;
+    // do I need to eliminate the key press ?
+  end else
+    inherited;
+
+end;
+
+procedure TDesignBox.CNKeyUp(var Message: TWMKeyUp);
+begin
+
+end;
+
 constructor TDesignBox.Create(AOwner: TComponent);
 begin
   inherited;
@@ -723,6 +839,8 @@ begin
   FPageColor := clWhite;
   FBorderStyle := bsSingle;
 
+  fScalePercent := 100;
+
   DoubleBuffered := True;
   FMode := dbmSelect;
 
@@ -730,6 +848,11 @@ begin
 
   FCanvas.Left := 0;
   FCanvas.Top := 0;
+
+  FWantTabs := TRUE;
+  FAllowTextEdit := TRUE;
+
+  self.TabStop := TRUE;
 
   FCanvas.Parent := Self;
 end;
@@ -763,12 +886,6 @@ begin
   fMouseInteraction.Free;
   inherited;
 end;
-                    {
-function TDesignBox.GetFont: TFont;
-begin
-  result := FCanvas.Font;
-end;                 }
-
 function TDesignBox.GetPageHeightMM: integer;
 begin
   Result := FPageSizeMM.Height;
@@ -777,6 +894,11 @@ end;
 function TDesignBox.GetPageWidthMM: integer;
 begin
   Result := FPageSizeMM.Width;
+end;
+
+function TDesignBox.GetScale: extended;
+begin
+  result := fScalePercent / 100;
 end;
 
 function TDesignBox.GetSelectedItems: TDesignBoxItemList;
@@ -789,6 +911,83 @@ begin
   begin
     if AItem.Selected then
       Result.Add(AItem);
+  end;
+end;
+
+procedure TDesignBox.KeyDown(var Key: Word; Shift: TShiftState);
+var
+  AItem : TDesignBoxBaseItem;
+  aText : String;
+  itext : IDesignTextEditor;
+begin
+  if (SelectedItems.Count = 1) then
+  begin
+    AItem := SelectedItems[0];
+    // HANDLE del/backspace key
+    if Supports(AItem, IDesignTextEditor, iText) then
+    begin
+      if (canEdit in AItem.Options) and (AllowTextEdit) then
+      begin
+        aText := iText.text;
+        if ((Key = VK_BACK) or (Key = VK_DELETE)) then
+        begin
+          // remove one character
+          aText := Copy(aText, 1, Length(aText)-1);
+        end
+        else if (ssCtrl in Shift) then
+        begin
+          // cut copy paste shortcuts
+          if Key = Ord('C') then
+            Clipboard.AsText := aText
+          else
+          if Key = Ord('X') then
+          begin
+            ClipBoard.AsText := aText;
+            aText := '';
+          end else
+          if (Clipboard.HasFormat(CF_TEXT)) and (Key = Ord('V')) then
+            aText := Trim(Clipboard.AsText);
+        end;
+
+
+        if aText <> iText.Text then
+        begin
+          iText.Text := aText;
+          Key := 0;
+          Redraw;
+          if assigned(fAfterEditItem) then
+            fAfterEditItem(Self, AItem);
+        end;
+      end;
+    end;
+  end;
+end;
+
+procedure TDesignBox.KeyPress(var Key: Char);
+var
+  AItem : TDesignBoxBaseItem;
+  iText : IDesignTextEditor;
+  aText : String;
+begin
+  // ignore all control codes
+  if (Ord(Key) < 32) then EXIT;
+  // very basic proof of concept only.
+  if (SelectedItems.Count = 1) then
+  begin
+    AItem := SelectedItems[0];
+    if Supports(Aitem, IDesignTextEditor, iText) then
+    begin
+      if (canEdit in AItem.Options) and (AllowTextEdit) then
+      begin
+        aText := itext.text;
+        aText := aText + Char(Key);
+        iText.Text := aText;
+        Key := #0;
+        Redraw;
+        if assigned(fAfterEditItem) then
+          fAfterEditItem(Self, AItem);
+      end;
+    end;
   end;
 end;
 
@@ -841,6 +1040,9 @@ begin
   try
     AJson := TJsonObject.ParseJSONValue(AJsonData) as TJSONObject;
     fRulerOptions.LoadFromJsonObject(AJson);
+    fMouseInteraction.LoadFromJsonObject(AJson);
+    if assigned(AJson.Values['scalePercent']) then
+      fScalePercent := TJsonNumber(AJson.Values['scalePercent']).AsInt;
     if assigned(AJson.Values['pageWidthMM']) then
       PageWidthMM := TJsonNumber(AJson.values['pageWidthMM']).asInt;
     if assigned(AJson.Values['pageHeightMM']) then
@@ -853,6 +1055,12 @@ begin
       fMode := TRttiEnumerationType.GetValue<TDesignBoxMode>(AJson.Values['mode'].value);
     if assigned(AJson.Values['drawClass']) then
       fDrawClass := TDesignBoxBaseItemClass(GetClass(AJson.Values['drawClass'].Value));
+    if assigned(AJson.Values['wantTabs']) then
+      fWantTabs := TJsonBool(AJson.Values['wantTabs']).AsBoolean;
+    if assigned(Ajson.Values['allowTextEdit']) then
+      fAllowTextEdit := TJsonBool(AJson.Values['allowTextEdit']).AsBoolean;
+    // FGridOptions.SaveToJsonObject(result);
+    FGridOptions.LoadFromJsonObject(AJson);
     FCanvas.LoadFromJson(AJson);
     FItems.LoadFromJson(AJson);
   finally
@@ -900,7 +1108,11 @@ begin
     FDesignBox.FOnSelectItem(Self, AItem);
 
   if FDesignBox.SelectedItems.Count > 0 then
+  begin
     FDesignBox.FMode := dbmSelect;
+  end;
+  if FDesignBox.CanFocus and not FDesignBox.Focused then
+    FDesignBox.SetFocus;
   inherited;
 end;
 
@@ -964,13 +1176,14 @@ begin
   if (FDragging) and (FDesignBox.FItems.SelectedCount = 0) and (FDesignBox.Mode = dbmSelect) then
   begin
     ADragArea := Rect(Min(FMouseDownPos.X, X), Min(FMouseDownPos.Y, Y), Max(FMouseDownPos.X, X), Max(FMouseDownPos.Y, Y));
+
     if (ADragArea.Width > C_DRAG_THRESHOLD) and (ADragArea.Height > C_DRAG_THRESHOLD) then
       for AItem in FDesignBox.FItems do
       begin
         AItem.Selected := AItem.RectsIntersect(ADragArea) and (canSelect in AItem.Options) and (Aitem.Visible);
       end;
-  end
-  else
+
+  end else
   begin
     for AItem in FDesignBox.SelectedItems do
     begin
@@ -1061,11 +1274,11 @@ begin
       // convert inches units to MM so we can still draw the lines in the right place
       if FRulerOptions.fMeasurementSystem = dbImperial then
       begin
-        aPixels := MMtoPixels((aUnit / 16) * 25.4); // convert a 1/16in unit to mm & then to pixels
+        aPixels := Round(MMtoPixels((aUnit / 16) * 25.4) * Scale); // convert a 1/16in unit to mm & then to pixels
         aDisplayUnit := aUnit div 16; // display units are inches
       end
       else begin
-        aPixels := MMtoPixels(aUnit); // usual mm 2 px conversion
+        aPixels := Round(MMtoPixels(aUnit) * Scale); // usual mm 2 px conversion
         if fRulerOptions.MeasurementSystem = dbMetricCent then
           aDisplayUnit := aUnit div 10 // centimetres display units
         else
@@ -1088,17 +1301,18 @@ begin
       Inc(aUnit);
     end;
 
+    aPixels := 0;
     aUnit := 1;
-    while MmToPixels(aUnit) < ALeftRuler.Height do
+    while aPixels < ALeftRuler.Height do
     begin
       // convert inches units to MM so we can still draw the lines in the right place
       if FRulerOptions.fMeasurementSystem = dbImperial then
       begin
-        aPixels := MMtoPixels((aUnit / 16) * 25.4); // convert a single "unit" to mm
+        aPixels := Round(MMtoPixels((aUnit / 16) * 25.4) * Scale); // convert a single "unit" to mm
         aDisplayUnit := aUnit div 16;
       end
       else begin
-        aPixels := MMtoPixels(aUnit);
+        aPixels := Round(MMtoPixels(aUnit) * Scale);
         if fRulerOptions.MeasurementSystem = dbMetricCent then
           aDisplayUnit := aUnit div 10
         else
@@ -1158,8 +1372,8 @@ var
   x, y: single;
   APageWidth, APageHeight: integer;
 begin
-  APageWidth := MmToPixels(FPageSizeMm.Width);
-  APageHeight := MmToPixels(FPageSizeMm.Height);
+  APageWidth := Trunc(MmToPixels(FPageSizeMm.Width) * Scale);
+  APageHeight := Trunc(MmToPixels(FPageSizeMm.Height) * Scale);
 
   ACanvas.Pen.Color := FGridOptions.Color;
   ACanvas.Pen.Mode := pmCopy;
@@ -1173,8 +1387,8 @@ begin
     begin
       ACanvas.Pen.Color := FGridOptions.Color;
       ACanvas.Pen.Mode := pmCopy;
-      ACanvas.MoveTo(MmToPixels(x), 0);
-      ACanvas.LineTo(MmToPixels(x), APageHeight);
+      ACanvas.MoveTo(Trunc(MmToPixels(x) * Scale), 0);
+      ACanvas.LineTo(Trunc(MmToPixels(x) * Scale), APageHeight);
       X := X + FGridOptions.SizeMm;
     end;
   end;
@@ -1184,8 +1398,8 @@ begin
     Y := 0;
     while Y < FPageSizeMM.Height do
     begin
-      ACanvas.MoveTo(0, MmToPixels(y));
-      ACanvas.LineTo(APageWidth, MmToPixels(y));
+      ACanvas.MoveTo(0, Round(MmToPixels(y) * Scale));
+      ACanvas.LineTo(APageWidth, Round(MmToPixels(y) * Scale));
       Y := Y + FGridOptions.SizeMm;
     end;
   end;
@@ -1292,8 +1506,8 @@ end;
 
 procedure TDesignBox.ResizeCanvas;
 begin
-  FCanvas.SetSize(MmToPixels(FPageSizeMM.Width)+1,
-                  MmToPixels(FPageSizeMM.Height)+1);
+  FCanvas.SetSize(Trunc(MmToPixels(FPageSizeMM.Width) * Scale) +1,
+                  Trunc(MmToPixels(FPageSizeMM.Height) * Scale)+1);
 end;
 
 procedure TDesignBox.SaveSnapShot(aForce: boolean);
@@ -1321,7 +1535,6 @@ procedure TDesignBox.SaveToStream(AStream: TStream);
 var
   AJson: TJsonObject;
   AStringStream: TStringStream;
-
 begin
   AJson := toJsonObject;
   try
@@ -1372,6 +1585,11 @@ begin
 end;
 
 
+procedure TDesignBox.SetAllowTextEdit(const Value: boolean);
+begin
+  fAllowTextEdit := Value;
+end;
+
 procedure TDesignBox.SetBackgroundColor(const Value: TColor);
 begin
   fBackgroundColor := Value;
@@ -1413,8 +1631,8 @@ end;
 
 procedure TDesignBox.SetPageSize(APageSize: TSize);
 begin
-  FPageSizeMM.Width := APageSize.Width;
-  FPageSizeMM.Height := APageSize.Height;
+  FPageSizeMM.Width := Trunc(APageSize.Width * Scale);
+  FPageSizeMM.Height := Trunc(APageSize.Height * Scale);
   if assigned(onResize) then
     OnResize(Self);
   Redraw;
@@ -1422,7 +1640,7 @@ end;
 
 procedure TDesignBox.SetPageWidthMM(const Value: integer);
 begin
-  FPageSizeMM.Width := Value;
+  FPageSizeMM.Width := Trunc(Value * scale);
   if assigned(OnResize) then
     OnResize(self);
   Redraw;
@@ -1432,8 +1650,8 @@ procedure TDesignBox.SetPageSize(AWidthMM, AHeightMM: integer);
 var
   ASize: TSize;
 begin
-  ASize.Width := AwidthMM;
-  ASize.Height := AHeightMM;
+  ASize.Width := Trunc(AwidthMM * Scale);
+  ASize.Height := Trunc(AHeightMM * Scale);
   SetPageSize(ASize);
 end;
 
@@ -1445,17 +1663,42 @@ begin
 end;
 
 
+procedure TDesignBox.SetScale(const Value: extended);
+begin
+  if fScalePercent <> Round(Value * 100) then
+  begin
+    fScalePercent := Round(Value * 100);
+    // limit size to 10 - 500%
+    if fScalePercent > 500 then
+      fScalePercent := 500;
+    if fScalePercent < 10 then
+      fScalePercent := 10;
+    Redraw;
+    if assigned(fAfterScale) then
+      fAfterScale(Self);
+  end;
+end;
+
+procedure TDesignBox.SetWantTabs(const Value: boolean);
+begin
+  fWantTabs := Value;
+end;
+
 function TDesignBox.ToJsonObject(const VisualOnly: boolean; const baseClass: TDesignBoxBaseItemClass): TJsonObject;
 begin
   result := TJsonObject.Create;
   FRulerOptions.SaveToJsonObject(result);
   FGridOptions.SaveToJsonObject(result);
+  fMouseInteraction.saveToJsonObject(result);
   result.AddPair('pageWidthMM', TJsonNumber.Create(PageWidthMM));
   result.AddPair('pageHeightMM', TJsonNumber.Create(PageHeightMM));
   result.AddPair('backgroundColor', ColorToString(FBackgroundColor));
   result.AddPair('pageColor', ColorToString(fPageColor));
   result.AddPair('mode', TRttiEnumerationType.GetName(fMode));
   result.AddPair('drawClass', fDrawClass.ClassName);
+  result.AddPair('scalePercent', TJsonNumber.Create(fScalePercent));
+  result.AddPair('wantTabs', TJsonBool.Create(fWantTabs));
+  result.AddPair('allowTextEdit', TJsonBool.Create(fAllowTextEdit));
   FCanvas.SaveToJson(result);
   FItems.SaveToJson(result, VisualOnly, baseClass);
 end;
@@ -1481,9 +1724,22 @@ begin
   inherited;
 end;
 
+procedure TDesignBox.WMKillFocus(var Message: TWMKillFocus);
+begin
+  redraw;
+  if not WantTabs then
+    inherited;
+end;
+
 procedure TDesignBox.WMNCHitTest(var Message: TWMNCHitTest);
 begin
   DefaultHandler(Message);
+end;
+
+procedure TDesignBox.WMSetFocus(var Message: TWMSetFocus);
+begin
+  redraw;
+  inherited;
 end;
 
 procedure TDesignBox.WMVScroll(var Message: TWMVScroll);
@@ -1500,6 +1756,7 @@ begin
   FFont := TDesignFont.Create;
   FFont.Assign(ADesignBox.Canvas.Font); //get the current font from DesignBox
   FFont.OnChange := DoFontChange;
+  Options := Options - [canSize]; // user changes font, size is automatic
 end;
 
 destructor TDesignBoxItemText.Destroy;
@@ -1518,17 +1775,28 @@ begin
   Result := FFont;
 end;
 
+function TDesignBoxItemText.GetText: string;
+begin
+  result := FText;
+end;
+
 procedure TDesignBoxItemText.PaintToCanvas(ACanvas: TCanvas);
 var
   r: TRect;
+  aWidthPx, aHeightPx : integer;
 begin
   inherited;
   ACanvas.Font.Assign(FFont);
-  // calculate width/height...
-  FWidth := PixelsToMu(ACanvas.TextWidth(FText));
-  FHeight := PixelsToMu(ACanvas.TextHeight(FText));
+  ACanvas.Font.Size := Trunc(0 - (ACanvas.TextHeight(FText) * FDesignBox.Scale));
 
-  r := RectPixels;
+  // calculate width/height dynamically - providing a minimum if text is emptystr
+  aWidthPx  := Max(ACanvas.TextWidth(FText), ACanvas.TextWidth('W'));
+  aHeightPx := Max(ACanvas.TextHeight(FText), ACanvas.TextHeight('Wy'));
+  FWidth  := PixelsToMu(Round(aWidthPx / DesignBoxParent.Scale));
+  FHeight := PixelsToMu(Round(aHeightPx / DesignBoxParent.Scale));
+
+  r := RectPixels; // reads FHeight/FWidth
+
   ACanvas.Rectangle(r.Left, r.Top, r.Right+1, r.Bottom+1);
   ACanvas.Brush.Style := bsClear;
   ACanvas.TextOut(r.Left, r.Top, FText);
@@ -1596,7 +1864,10 @@ begin
     ARect := RectPixels;
     InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
     ACanvas.Brush.Style := bsClear;
-    ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
+    if DesignBoxParent.Focused then
+      ACanvas.Pen.Color := C_HIGHLIGHT_COLOR
+    else
+      ACanvas.Pen.Color := C_UNFOCUSED_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Width := 1;
     ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
@@ -1667,10 +1938,10 @@ end;
 
 function TDesignBoxBaseItem.RectPixels: TRect;
 begin
-  Result.Left := MuToPixels(FPosition.X);
-  Result.Top := MuToPixels(FPosition.Y);
-  Result.Right := MuToPixels(FPosition.X + FWidth);
-  Result.Bottom := MuToPixels(FPosition.Y + FHeight);
+  Result.Left := Trunc(MuToPixels(FPosition.X) * FDesignBox.Scale);
+  Result.Top := Trunc(MuToPixels(FPosition.Y) * fDesignBox.Scale);
+  Result.Right := Trunc(MuToPixels(FPosition.X + FWidth) * fDesignBox.Scale);
+  Result.Bottom := Trunc(MuToPixels(FPosition.Y + FHeight) * fDesignBox.Scale);
   OffsetRect(Result, FDrawOffset.X, FDrawOffset.Y);
 end;
 
@@ -1688,7 +1959,6 @@ var
 begin
   // Stored measurements are Mu, so storing as int not float now
   // -- note property names have changed (add "Mu" suffix)
-  { TODO 1 -oSC -Json : to add support for reading x, y, width, height back as pixels for backward compatibility if it's an issue for Graham (its not for me)}
   FPosition.X := TJsonNumber(AJson.Values['xMu']).asInt;
   FPosition.Y := TJsonNumber(AJson.Values['yMu']).asInt;
   FWidth := TJsonNumber(AJson.Values['widthMu']).asInt;
@@ -2202,7 +2472,10 @@ begin
   begin
     aRect := RectPixels;
     InflateRect(aRect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE); // duplicate the inherited version
-    ACanvas.Pen.Color := C_HIGHLIGHT_COLOR;
+    if DesignBoxParent.Focused then
+      ACanvas.Pen.Color := C_HIGHLIGHT_COLOR
+    else
+      ACanvas.Pen.Color := C_UNFOCUSED_HIGHLIGHT_COLOR;
     ACanvas.Brush.Style := bsSolid;
     ACanvas.Brush.Color := ACanvas.Pen.Color;
     ACanvas.Pen.Width := 1;
@@ -3167,6 +3440,17 @@ constructor TDesignBoxMouseInteractionOptions.Create;
 begin
   inherited Create;
   fDragSelect := TRUE;
+end;
+
+procedure TDesignBoxMouseInteractionOptions.LoadFromJsonObject(AJson: TJsonObject);
+begin
+  if assigned(AJson.Values['dragSelect']) then
+    fDragSelect := TJsonBool(AJson.Values['dragSelect']).asBoolean;
+end;
+
+procedure TDesignBoxMouseInteractionOptions.SaveToJsonObject(AJson: TJsonObject);
+begin
+  AJson.AddPair('dragSelect', TJsonBool.Create(fDragSelect));
 end;
 
 procedure TDesignBoxMouseInteractionOptions.SetDragSelect(const Value: boolean);

@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'frmMain'
-  ClientHeight = 660
-  ClientWidth = 832
+  ClientHeight = 916
+  ClientWidth = 1065
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -19,7 +19,7 @@ object frmMain: TfrmMain
     Left = 0
     Top = 129
     Width = 8
-    Height = 463
+    Height = 719
     Align = alLeft
     Shape = bsSpacer
     ExplicitTop = 49
@@ -27,19 +27,20 @@ object frmMain: TfrmMain
   end
   object Bevel2: TBevel
     Left = 0
-    Top = 592
-    Width = 832
+    Top = 848
+    Width = 1065
     Height = 8
     Align = alBottom
     Shape = bsSpacer
     ExplicitLeft = 8
     ExplicitTop = 588
+    ExplicitWidth = 832
   end
   object Bevel3: TBevel
-    Left = 824
+    Left = 1057
     Top = 129
     Width = 8
-    Height = 463
+    Height = 719
     Align = alRight
     Shape = bsSpacer
     ExplicitLeft = 50
@@ -49,7 +50,7 @@ object frmMain: TfrmMain
   object Bevel4: TBevel
     Left = 0
     Top = 121
-    Width = 832
+    Width = 1065
     Height = 8
     Align = alTop
     Shape = bsSpacer
@@ -60,8 +61,8 @@ object frmMain: TfrmMain
   object DesignBox1: TDesignBox
     Left = 8
     Top = 129
-    Width = 816
-    Height = 463
+    Width = 1049
+    Height = 719
     HorzScrollBar.Tracking = True
     VertScrollBar.Tracking = True
     Align = alClient
@@ -71,31 +72,36 @@ object frmMain: TfrmMain
     RulerOptions.ForegroundColor = clGray
     RulerOptions.BackgroundColor = clWindow
     RulerOptions.Units = 'mm'
+    RulerOptions.MeasurementSystem = dbMetric
     RulerOptions.Font.Charset = DEFAULT_CHARSET
     RulerOptions.Font.Color = clWindowText
     RulerOptions.Font.Height = -13
     RulerOptions.Font.Name = 'Segoe UI'
     RulerOptions.Font.Style = []
-    PageWidthMM = 190
+    PageWidthMM = 100
     PageHeightMM = 100
+    Scale = 1.000000000000000000
     OnChange = DesignBox1Change
     OnMouseDown = DesignBox1MouseDown
     OnMouseMove = DesignBox1MouseMove
     OnSelectItem = DesignBox1SelectItem
+    AfterDrawItem = DesignBox1AfterDrawItem
+    AfterEditItem = DesignBox1AfterEditItem
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 832
+    Width = 1065
     Height = 121
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
     object Image1: TImage
-      Left = 834
-      Top = 9
-      Width = 35
-      Height = 35
+      Left = 900
+      Top = -5
+      Width = 128
+      Height = 128
+      AutoSize = True
       Picture.Data = {
         0954506E67496D61676589504E470D0A1A0A0000000D49484452000000800000
         00800806000000C33E61CB0000000473424954080808087C0864880000364949
@@ -550,7 +556,7 @@ object frmMain: TfrmMain
       Width = 83
       Height = 25
       Caption = 'Add Text'
-      TabOrder = 0
+      TabOrder = 1
       OnClick = btnAddTextClick
     end
     object btnAddGraphic: TButton
@@ -559,7 +565,7 @@ object frmMain: TfrmMain
       Width = 83
       Height = 25
       Caption = 'Add Images'
-      TabOrder = 1
+      TabOrder = 2
       OnClick = btnAddGraphicClick
     end
     object btnSave: TButton
@@ -568,7 +574,7 @@ object frmMain: TfrmMain
       Width = 65
       Height = 25
       Caption = 'Save'
-      TabOrder = 10
+      TabOrder = 15
       OnClick = btnSaveClick
     end
     object btnClear: TButton
@@ -577,7 +583,7 @@ object frmMain: TfrmMain
       Width = 65
       Height = 25
       Caption = 'Clear'
-      TabOrder = 9
+      TabOrder = 14
       OnClick = btnClearClick
     end
     object btnAddRectangle: TButton
@@ -586,7 +592,7 @@ object frmMain: TfrmMain
       Width = 83
       Height = 25
       Caption = 'Add Rectangle'
-      TabOrder = 2
+      TabOrder = 3
       OnClick = btnAddRectangleClick
     end
     object btnAddEllipse: TButton
@@ -595,7 +601,7 @@ object frmMain: TfrmMain
       Width = 83
       Height = 25
       Caption = 'Add Ellipse'
-      TabOrder = 3
+      TabOrder = 5
       OnClick = btnAddEllipseClick
     end
     object btnFont: TButton
@@ -604,7 +610,7 @@ object frmMain: TfrmMain
       Width = 65
       Height = 25
       Caption = 'Font'
-      TabOrder = 7
+      TabOrder = 13
       OnClick = btnFontClick
     end
     object btnBorderColor: TButton
@@ -613,7 +619,7 @@ object frmMain: TfrmMain
       Width = 65
       Height = 25
       Caption = 'Border'
-      TabOrder = 6
+      TabOrder = 12
       OnClick = btnBorderColorClick
     end
     object btnFillColor: TButton
@@ -622,7 +628,7 @@ object frmMain: TfrmMain
       Width = 65
       Height = 25
       Caption = 'Fill'
-      TabOrder = 5
+      TabOrder = 11
       OnClick = btnFillColorClick
     end
     object chkNoFill: TCheckBox
@@ -631,7 +637,7 @@ object frmMain: TfrmMain
       Width = 58
       Height = 17
       Caption = 'No Fill'
-      TabOrder = 4
+      TabOrder = 8
       OnClick = chkNoFillClick
     end
     object btnLoad: TButton
@@ -640,7 +646,7 @@ object frmMain: TfrmMain
       Width = 65
       Height = 25
       Caption = 'Load'
-      TabOrder = 11
+      TabOrder = 16
       OnClick = btnLoadClick
     end
     object txtTextItem: TEdit
@@ -648,7 +654,7 @@ object frmMain: TfrmMain
       Top = 49
       Width = 144
       Height = 23
-      TabOrder = 8
+      TabOrder = 9
       OnChange = txtTextItemChange
     end
     object chkNoBorder: TCheckBox
@@ -657,7 +663,7 @@ object frmMain: TfrmMain
       Width = 80
       Height = 17
       Caption = 'No Border'
-      TabOrder = 12
+      TabOrder = 7
       OnClick = chkNoBorderClick
     end
     object Button3: TButton
@@ -666,7 +672,7 @@ object frmMain: TfrmMain
       Width = 83
       Height = 25
       Caption = 'Round Rect'
-      TabOrder = 13
+      TabOrder = 4
       OnClick = Button3Click
     end
     object Button5: TButton
@@ -675,7 +681,7 @@ object frmMain: TfrmMain
       Width = 83
       Height = 25
       Action = actSelectAll
-      TabOrder = 14
+      TabOrder = 6
     end
     object RadioGroup1: TRadioGroup
       Left = 16
@@ -689,31 +695,42 @@ object frmMain: TfrmMain
         'Draw Rectangle'
         'Draw Ellipse'
         'Draw Text')
-      TabOrder = 15
+      TabOrder = 0
       OnClick = RadioGroup1Click
     end
-    object btnTestSizes: TButton
+    object btnTestFocus: TButton
       Left = 687
       Top = 80
       Width = 65
       Height = 25
-      Caption = 'Test MM'
-      TabOrder = 16
-      OnClick = btnTestSizesClick
+      Caption = 'Test Focus'
+      TabOrder = 17
+      OnClick = btnTestFocusClick
+    end
+    object chkAllowTextEdit: TCheckBox
+      Left = 395
+      Top = 80
+      Width = 144
+      Height = 17
+      Caption = 'Allow Direct Text Editing'
+      Checked = True
+      State = cbChecked
+      TabOrder = 10
+      OnClick = chkAllowTextEditClick
     end
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 641
-    Width = 832
+    Top = 897
+    Width = 1065
     Height = 19
     Panels = <>
     SimplePanel = True
   end
   object Panel2: TPanel
     Left = 0
-    Top = 600
-    Width = 832
+    Top = 856
+    Width = 1065
     Height = 41
     Align = alBottom
     BevelOuter = bvNone
@@ -732,6 +749,13 @@ object frmMain: TfrmMain
       Width = 36
       Height = 15
       Caption = 'Height'
+    end
+    object Label4: TLabel
+      Left = 835
+      Top = 13
+      Width = 40
+      Height = 15
+      Caption = 'Scale %'
     end
     object Button1: TButton
       Left = 8
@@ -768,7 +792,7 @@ object frmMain: TfrmMain
       Increment = 10
       MaxValue = 0
       MinValue = 0
-      TabOrder = 6
+      TabOrder = 7
       Value = 100
       OnChange = spinWidthChange
     end
@@ -780,7 +804,7 @@ object frmMain: TfrmMain
       Increment = 10
       MaxValue = 0
       MinValue = 0
-      TabOrder = 7
+      TabOrder = 8
       Value = 100
       OnChange = spinHeightChange
     end
@@ -820,9 +844,21 @@ object frmMain: TfrmMain
       Height = 25
       Caption = 'Align'
       Style = bsSplitButton
-      TabOrder = 8
+      TabOrder = 6
       OnClick = Button4Click
       OnDropDownClick = Button4DropDownClick
+    end
+    object spinScale: TSpinEdit
+      Left = 884
+      Top = 11
+      Width = 53
+      Height = 24
+      Increment = 10
+      MaxValue = 0
+      MinValue = 0
+      TabOrder = 9
+      Value = 100
+      OnChange = spinScaleChange
     end
   end
   object PopupMenu1: TPopupMenu

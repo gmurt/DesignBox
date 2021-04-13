@@ -92,7 +92,10 @@ type
     N6: TMenuItem;
     AlignHorzCenters2: TMenuItem;
     AlignVertCenters2: TMenuItem;
-    btnTestSizes: TButton;
+    btnTestFocus: TButton;
+    spinScale: TSpinEdit;
+    Label4: TLabel;
+    chkAllowTextEdit: TCheckBox;
     procedure btnAddTextClick(Sender: TObject);
     procedure btnAddGraphicClick(Sender: TObject);
     procedure DesignBox1MouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -134,8 +137,13 @@ type
     procedure RadioGroup1Click(Sender: TObject);
     procedure actAlignHorzCenterExecute(Sender: TObject);
     procedure actAlignVertCenterExecute(Sender: TObject);
-    procedure btnTestSizesClick(Sender: TObject);
+    procedure btnTestFocusClick(Sender: TObject);
+    procedure spinScaleChange(Sender: TObject);
+    procedure chkAllowTextEditClick(Sender: TObject);
+    procedure DesignBox1AfterDrawItem(Sender: TObject; aNewItem: TDesignBoxBaseItem; aIndex: Integer);
+    procedure DesignBox1AfterEditItem(Sender: TObject; aItem: TDesignBoxBaseItem);
   private
+    fUpdatingControls: Boolean;
     function AppDir: string;
     procedure UpdateItemCoords;
     procedure UpdateActionStates;
@@ -286,36 +294,9 @@ begin
   Button4.DropDownMenu := alignPopup;
 end;
 
-procedure TfrmMain.btnTestSizesClick(Sender: TObject);
-var
-  I: Integer;
-  R: Integer;
-  PH : integer;
-  RTangle: TDesignBoxItemRectangle;
-  Texter : TDesignBoxItemText;
-const
-  Sizes : array [0..9] of single = (6.3, 6.9, 6.0, 6.2, 9.1, 9.5, 9.9, 10, 10.75, 15.75);
-  HeightMM = 10; // mm
-  MarginMM = 2; // mm
-  LeftMM = 10; // mm
+procedure TfrmMain.btnTestFocusClick(Sender: TObject);
 begin
-  DesignBox1.Clear;
-  DesignBox1.BeginUpdate;
-  try
-    PH := DesignBox1.PageHeightMM;
-    for I := 0 to Length(Sizes)-1 do
-    begin
-      R := MarginMM + (I) * (HeightMM + MarginMM);
-      RTangle := DesignBox1.Canvas.Rectangle(LeftMM, R, LeftMM + Sizes[I], R + HeightMM);
-      RTangle.Tag := Trunc(Sizes[I] * 1000); // store width in MM
-      Texter := DesignBox1.Canvas.TextOut(LeftMM, R, IntToStr(RTangle.Tag));
-      if R + HeightMM > PH then
-        PH := R + HeightMM;
-    end;
-    DesignBox1.PageHeightMM := PH + MarginMM;
-  finally
-    DesignBox1.Endupdate;
-  end;
+  DesignBox1.SetFocus;
 end;
 
 procedure TfrmMain.chkNoFillClick(Sender: TObject);
@@ -336,6 +317,11 @@ end;
 procedure TfrmMain.CheckBox3Click(Sender: TObject);
 begin
   DesignBox1.RulerOptions.Visible := CheckBox3.Checked;
+end;
+
+procedure TfrmMain.chkAllowTextEditClick(Sender: TObject);
+begin
+  DesignBox1.AllowTextEdit := TCheckBox(Sender).Checked;
 end;
 
 procedure TfrmMain.chkGridVisibleClick(Sender: TObject);
@@ -376,6 +362,25 @@ begin
   item := DesignBox1.Canvas.Ellipse(RectF(20, 20, 40, 40));
   DesignBox1.items.DeselectAll;
   item.selected := True;
+end;
+
+procedure TfrmMain.DesignBox1AfterDrawItem(Sender: TObject; aNewItem: TDesignBoxBaseItem; aIndex: Integer);
+begin
+  // what was drawn and whats' it's list index?
+end;
+
+procedure TfrmMain.DesignBox1AfterEditItem(Sender: TObject; aItem: TDesignBoxBaseItem);
+begin
+  if aItem.Selected and (aitem is TDesignBoxItemText) then
+  begin
+    fUpdatingControls := TRUE;
+    try
+      // this edit is used to set item properties - so need this to prevent infinite looping
+      txtTextItem.text := TDesignBoxItemText(aItem).Text;
+    finally
+      fUpdatingControls := FALSE;
+    end;
+  end;
 end;
 
 procedure TfrmMain.DesignBox1Change(Sender: TObject);
@@ -456,18 +461,24 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  self.Caption := application.title;
-  dlgBorderColor.Color := clWebNavy;
-  dlgFillColor.Color := clWebLightSkyBlue;
-  txtTextItem.text := 'Some Text';
-  chkGridVisible.Checked := DesignBox1.GridOptions.Visible;
-  chkSnapTogrid.Checked := DesignBox1.GridOptions.SnapToGrid;
-  spinWidth.value := Designbox1.PageWidthMM;
-  spinHeight.Value := DesignBox1.PageHeightMM;
-  spinHeight.MinValue := 10;
-  spinHeight.MaxValue := 1000;
-  spinWidth.MinValue := 10;
-  spinWidth.MaxValue := 1000;
+  fUpdatingControls := TRUE;
+  try
+    self.Caption := application.title;
+    dlgBorderColor.Color := clWebNavy;
+    dlgFillColor.Color := clWebLightSkyBlue;
+    txtTextItem.text := 'Some Text';
+    chkGridVisible.Checked := DesignBox1.GridOptions.Visible;
+    chkSnapTogrid.Checked := DesignBox1.GridOptions.SnapToGrid;
+    chkAllowTextEdit.Checked := DesignBox1.AllowTextEdit;
+    spinWidth.value := Designbox1.PageWidthMM;
+    spinHeight.Value := DesignBox1.PageHeightMM;
+    spinHeight.MinValue := 10;
+    spinHeight.MaxValue := 1000;
+    spinWidth.MinValue := 10;
+    spinWidth.MaxValue := 1000;
+  finally
+    fUpdatingControls := false;
+  end;
 end;
 
 procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
@@ -503,6 +514,11 @@ begin
   DesignBox1.PageHeightMM := spinHeight.Value;
 end;
 
+procedure TfrmMain.spinScaleChange(Sender: TObject);
+begin
+  DesignBox1.Scale := TSpinEdit(Sender).Value / 100;
+end;
+
 procedure TfrmMain.spinWidthChange(Sender: TObject);
 begin
   DesignBox1.PageWidthMM := spinWidth.Value;
@@ -510,6 +526,8 @@ end;
 
 procedure TfrmMain.txtTextItemChange(Sender: TObject);
 begin
+  if fUpdatingControls then EXIT;
+
   if (DesignBox1.SelectedItems.Count = 1) then
     if DesignBox1.SelectedItems[0] is TDesignBoxItemText then
       TDesignBoxItemText(DesignBox1.SelectedItems[0]).Text := TEdit(Sender).Text;
