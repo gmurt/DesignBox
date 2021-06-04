@@ -684,8 +684,8 @@ object frmMain: TfrmMain
       TabOrder = 6
     end
     object RadioGroup1: TRadioGroup
-      Left = 16
-      Top = 13
+      Left = 8
+      Top = 4
       Width = 137
       Height = 102
       Caption = 'Mode'

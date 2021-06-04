@@ -12,6 +12,8 @@ type
   TItemOption = (canSize, canMove, canDelete, canSelect, canEdit);
   TItemOptions = set of TItemOption;
 
+  TDesignSelectionGrabHandleStyle = (ghsSquare, ghsCircle, ghsNone);
+
   TDesignBox = class;
   TDesignBoxBaseItem = class;
 
@@ -44,6 +46,20 @@ type
     function GetText: string;
     procedure SetText(const Value: string);
     property Text : string read GetText write SetText;
+  end;
+
+  TDesignSelectionStyle = class
+  private
+    fColor : TColor;
+    fPenWidth : integer;
+    fGrabHandleCanSize : TDesignSelectionGrabHandleStyle;
+    fGrabHandleNoSize : TDesignSelectionGrabHandleStyle;
+  public
+    constructor Create; virtual;
+    property Color : TColor read fColor write fColor ;
+    property PenWidth : integer read fPenWidth write fPenWidth ;
+    property GrabHandleCanSize : TDesignSelectionGrabHandleStyle read fGrabHandleCanSize write fGrabHandleCanSize ;
+    property GrabHandleNoSize : TDesignSelectionGrabHandleStyle read fGrabHandleNoSize write fGrabHandleNoSize ;
   end;
 
   TDesignBoxSelectItemEvent = procedure(Sender: TObject; AItem: TDesignBoxBaseItem) of object;
@@ -100,6 +116,7 @@ type
     FWidth: integer;
     FHeight: integer;
     FSelected: Boolean;
+    FSelectionStyle : TDesignSelectionStyle;
     FDrawOffset: TPoint;
     fOptions : TItemOptions;
     fVisible: boolean;
@@ -118,10 +135,10 @@ type
     function GetCenterPtMm: TPointF;
     procedure SetCenterPtMm(const Value: TPointF);
     procedure SetVisible(const Value: boolean);
+    procedure SetSelectionStyle(const Value: TDesignSelectionStyle);
   protected
     property DesignBoxParent: TDesignBox read fDesignBox;
     procedure SetSelectedItem(const Value: Boolean); virtual;
-    function RectPixels: TRect; virtual;
     function RectMM: TRectF;
     function BoundsRect: TRect;
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
@@ -132,12 +149,14 @@ type
     destructor Destroy; override;
     function PointInRgn(x, y: integer): Boolean;
     function RectsIntersect(ARect: TRect): Boolean;
+    function RectPixels: TRect; virtual;
     procedure UpdateToDragPosition;
     procedure SnapToGrid;
     procedure SaveToJson(AJson: TJsonObject); virtual;
     function asJsonObject: TJsonObject;
     procedure LoadFromJson(AJson: TJsonObject); virtual;
     property Selected: Boolean read FSelected write SetSelectedItem;
+    property SelectionStyle : TDesignSelectionStyle read fSelectionStyle write SetSelectionStyle;
     property LeftMM: Extended read GetLeftMM write SetLeftMM;
     property TopMM: Extended read GetTopMM write SetTopMM;
     property WidthMM: Extended read GetWidthMM write SetWidthMM;
@@ -427,7 +446,7 @@ type
   protected
     procedure LoadFromJsonObject(AJson: TJsonObject);
     procedure SaveToJsonObject(AJson: TJsonObject);
-  published
+  public
     constructor Create;
     property DragSelect: boolean read fDragSelect write SetDragSelect default True;
   end;
@@ -480,6 +499,7 @@ type
     procedure SetScale(const Value: extended);
     procedure SetWantTabs(const Value: boolean);
     procedure SetAllowTextEdit(const Value: boolean);
+    procedure SetMode(const Value: TDesignBoxMode);
 
   protected
 
@@ -532,7 +552,7 @@ type
 
     property Canvas: TDesignBoxCanvas read FCanvas;
     property Items: TDesignBoxItemList read FItems;
-    property Mode: TDesignBoxMode read FMode write FMode default dbmSelect;
+    property Mode: TDesignBoxMode read FMode write SetMode default dbmSelect;
     property DrawClass : TDesignBoxBaseItemClass read fDrawClass write fDrawClass;
     property SelectedItems: TDesignBoxItemList read GetSelectedItems;// write SetSelectedItem;
 
@@ -1192,6 +1212,7 @@ begin
   end;
   FDragging := False;
 
+  // This rectangle is not the same as the rectangle used for the selection rectangle (Bookmark #2)
   ARect := RectF(PixelsToMM(FMouseDownPos.X),
                 PixelsToMM(FMouseDownPos.Y),
                 PixelsToMM(FMouseXY.X),
@@ -1432,7 +1453,17 @@ begin
     Canvas.Pen.Color := clBlack;
     Canvas.Pen.Mode := pmNot;
     Canvas.Brush.Style := bsClear;
-    Canvas.Rectangle(ARect);
+    case FDesignBox.Mode of
+      dbmSelect: Canvas.Rectangle(ARect);
+      dbmDraw:
+      begin
+        if fDesignBox.DrawClass = TDesignBoxItemEllipse then
+          Canvas.Ellipse(aRect)
+        else
+          Canvas.Rectangle(aRect);
+      end;
+    end;
+
   end;
   //Canvas.Brush.Style := bsClear;
   //Canvas.Brush.Color := clDkGray;
@@ -1506,8 +1537,11 @@ end;
 
 procedure TDesignBox.ResizeCanvas;
 begin
-  FCanvas.SetSize(Trunc(MmToPixels(FPageSizeMM.Width) * Scale) +1,
-                  Trunc(MmToPixels(FPageSizeMM.Height) * Scale)+1);
+  assert(fPageSizeMM.Width > 0, 'Page Width MM cannot be zero');
+  assert(fPageSizeMM.Height > 0, 'Page Height MM cannot be zero');
+
+  FCanvas.SetSize(Trunc(MmToPixels(FPageSizeMM.Width) * Scale) + 1,
+                  Trunc(MmToPixels(FPageSizeMM.Height) * Scale) + 1);
 end;
 
 procedure TDesignBox.SaveSnapShot(aForce: boolean);
@@ -1608,6 +1642,14 @@ end;
 procedure TDesignBox.SetGridOptions(const Value: TDesignBoxGridOptions);
 begin
   FGridOptions.Assign(Value);
+end;
+
+procedure TDesignBox.SetMode(const Value: TDesignBoxMode);
+begin
+  if FMode <> Value then
+  begin
+    FMode := Value;
+  end;
 end;
 
 procedure TDesignBox.SetMouseInteraction(const Value: TDesignBoxMouseInteractionOptions);
@@ -1848,10 +1890,12 @@ begin
   FSelected := False;
   FVisible := TRUE; // if false cannot be selected either
   FOptions := [low(TITemOption)..High(TItemOption)];
+  fSelectionStyle := TDesignSelectionStyle.Create;
 end;
 
 destructor TDesignBoxBaseItem.Destroy;
 begin
+  fSelectionStyle.free;
   inherited;
 end;
 
@@ -1865,11 +1909,11 @@ begin
     InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
     ACanvas.Brush.Style := bsClear;
     if DesignBoxParent.Focused then
-      ACanvas.Pen.Color := C_HIGHLIGHT_COLOR
+      ACanvas.Pen.Color := FSelectionStyle.Color
     else
       ACanvas.Pen.Color := C_UNFOCUSED_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
-    ACanvas.Pen.Width := 1;
+    ACanvas.Pen.Width := fSelectionStyle.PenWidth;
     ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
   end;
 end;
@@ -2029,6 +2073,15 @@ begin
   end;
 end;
 
+procedure TDesignBoxBaseItem.SetSelectionStyle(const Value: TDesignSelectionStyle);
+begin
+  if fSelectionStyle <> Value then
+  begin
+    fSelectionStyle := Value;
+    Changed;
+  end;
+end;
+
 procedure TDesignBoxBaseItem.SetTopMM(const Value: Extended);
 begin
   FPosition.Y := MmToMu(Value)
@@ -2183,7 +2236,7 @@ begin
   Result := nil;
   for AItem in Self do
   begin
-    if AItem.PointInRgn(x, y) then
+    if (canSelect in AItem.Options) and AItem.Visible and AItem.PointInRgn(x, y) then
     begin
       Result := AItem;
     end;
@@ -2462,23 +2515,26 @@ var
   ii: TDragHandlePos;
   aRect, handleRect : TRect;
   handlePoints : array[TDragHandlePos] of TPoint; // array of the centrepoints of each selectHandle
+  aGrabHandleStyle : TDesignSelectionGrabHandleStyle;
 const
   CH_RADIUS = 4; // 16 pixel square grab handlePoints
 begin
 
   inherited DrawSelectedRect(ACanvas);
 
-  if FSelected and (canSize in fOptions) then
+  if FSelected then
   begin
+    // setup for selection handle drawing
     aRect := RectPixels;
     InflateRect(aRect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE); // duplicate the inherited version
     if DesignBoxParent.Focused then
-      ACanvas.Pen.Color := C_HIGHLIGHT_COLOR
+      ACanvas.Pen.Color := FSelectionStyle.Color
     else
       ACanvas.Pen.Color := C_UNFOCUSED_HIGHLIGHT_COLOR;
     ACanvas.Brush.Style := bsSolid;
     ACanvas.Brush.Color := ACanvas.Pen.Color;
-    ACanvas.Pen.Width := 1;
+    ACanvas.Pen.Width := fSelectionStyle.PenWidth;
+
     handlePoints[dhTopLeft]     := aRect.TopLeft;
     handlePoints[dhTopRight]    := Point(aRect.Right, aRect.Top);
     handlePoints[dhBottomRight] := aRect.BottomRight;
@@ -2486,11 +2542,39 @@ begin
 
     for ii := Low(TDragHandlePos) to High(TDragHandlePos) do
     begin
-      handleRect := Rect(handlePoints[ii].X - CH_RADIUS, handlePoints[ii].Y - CH_RADIUS, handlePoints[ii].X + CH_RADIUS, handlePoints[ii].Y + CH_RADIUS);
       fSelectHandles[ii] := handleRect; // save for comparison in PointInRgn later
-      ACanvas.Rectangle(handleRect);
+      handleRect := Rect(handlePoints[ii].X - CH_RADIUS, handlePoints[ii].Y - CH_RADIUS, handlePoints[ii].X + CH_RADIUS, handlePoints[ii].Y + CH_RADIUS);
+
+      // empty squares or circles if not sizeable, filled if sizeable
+      if (canSize in fOptions) then
+      begin
+        ACanvas.Brush.Style := bsSolid;
+        aGrabHandleStyle := FSelectionStyle.GrabHandleCanSize;
+      end else
+      begin
+        ACanvas.Brush.Style := bsClear;
+        aGrabHandleStyle := fSelectionStyle.GrabHandleNoSize;
+      end;
+
+      case aGrabHandleStyle of
+        ghsSquare: ACanvas.Rectangle(handleRect);
+        ghsCircle: ACanvas.Ellipse(handleRect);
+        ghsNone: begin end;
+      end;
+
+//      if (canSize in fOptions) then
+//      begin
+//        ACanvas.Brush.Style := bsSolid;
+//        ACanvas.Rectangle(handleRect);
+//      end else
+//      begin
+//        // ellipse? filled or empty ?
+//        ACanvas.Brush.Style := bsClear;
+//        ACanvas.Ellipse(handleRect);
+//      end;
     end;
   end;
+
 end;
 
 procedure TDesignBoxItemSizable.PaintToCanvas(ACanvas: TCanvas);
@@ -3456,6 +3540,16 @@ end;
 procedure TDesignBoxMouseInteractionOptions.SetDragSelect(const Value: boolean);
 begin
   fDragSelect := Value;
+end;
+
+{ TDesignSelectionStyle }
+
+constructor TDesignSelectionStyle.Create;
+begin
+  fGrabHandleCanSize := ghsSquare;
+  fGrabHandleNoSize := ghsNone;
+  fColor := C_HIGHLIGHT_COLOR;
+  fPenWidth := 1;
 end;
 
 initialization

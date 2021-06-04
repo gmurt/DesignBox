@@ -349,6 +349,8 @@ var
   item: TDesignBoxItemRectangle;
 begin
   item := DesignBox1.Canvas.Rectangle(RectF(20, 20, 40, 40));
+  item.SelectionStyle.Color := clWebDarkOrange;
+  item.SelectionStyle.PenWidth := 1;
   DesignBox1.items.DeselectAll;
   item.selected := True;
 
@@ -416,6 +418,7 @@ begin
     chkNoFill.checked := TDesignBoxItemText(AItem).Brush.Style = bsClear;
   end;
 
+  RadioGroup1.ItemIndex := 0; // when selecting something will revert to select mode
   StatusBar1.SimpleText := Format('TopLeft=(%f, %f) | Size=(%f, %f) | Tag=%d', [AItem.LeftMM, AItem.TopMM, AItem.WidthMM, AItem.HeightMM, AItem.Tag]);
 
   {UpdateItemCoords(DesignBox1.SelectedItem);
