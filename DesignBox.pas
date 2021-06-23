@@ -112,9 +112,9 @@ type
   TDesignBoxBaseItem = class(TDesignBoxItemInterface)
   private
     FDesignBox: TDesignBox;
-    FPosition: TPoint;
-    FWidth: integer;
-    FHeight: integer;
+    FPosition: TPoint; // mu
+    FWidth: integer; // mu
+    FHeight: integer; // mu
     FSelected: Boolean;
     FSelectionStyle : TDesignSelectionStyle;
     FDrawOffset: TPoint;
@@ -159,6 +159,8 @@ type
     property SelectionStyle : TDesignSelectionStyle read fSelectionStyle write SetSelectionStyle;
     property LeftMM: Extended read GetLeftMM write SetLeftMM;
     property TopMM: Extended read GetTopMM write SetTopMM;
+    function muPos : TPoint;
+    function muSize : TSize;
     property WidthMM: Extended read GetWidthMM write SetWidthMM;
     property HeightMM: Extended read GetHeightMm write SetHeightMm;
     property CenterPtMm: TPointF read GetCenterPtMm write SetCenterPtMm;
@@ -542,6 +544,7 @@ type
     procedure SendBackwards;
     procedure SetPageSize(AWidthMM, AHeightMM: integer); overload;
     procedure SetPageSize(APageSize: TSize); overload;
+    function  GetPageSizeMu : TSize;
     procedure Redraw;
     procedure Undo;
     procedure Redo;
@@ -909,6 +912,12 @@ end;
 function TDesignBox.GetPageHeightMM: integer;
 begin
   Result := FPageSizeMM.Height;
+end;
+
+function TDesignBox.GetPageSizeMu: TSize;
+begin
+  result.Width := FPageSizeMM.Width * 1000;
+  result.Height := fPageSizeMM.Height * 1000;
 end;
 
 function TDesignBox.GetPageWidthMM: integer;
@@ -2022,6 +2031,18 @@ begin
   end;
   if assigned(aJson.Values['visible']) then
     Visible := TJsonBool(aJson.Values['visible']).AsBoolean;
+end;
+
+function TDesignBoxBaseItem.muPos: TPoint;
+begin
+  result.X := FPosition.X;
+  result.Y := FPosition.Y;
+end;
+
+function TDesignBoxBaseItem.muSize: TSize;
+begin
+  result.Width := FWidth;
+  result.Height := fHeight;
 end;
 
 procedure TDesignBoxBaseItem.SaveToJson(AJson: TJsonObject);
