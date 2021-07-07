@@ -6,6 +6,9 @@ uses
   Windows, Messages, System.SysUtils, System.Classes, Vcl.Controls, System.Types, System.Generics.Collections,
   vcl.Graphics, System.Generics.Defaults, System.Json, vcl.Imaging.Jpeg, Vcl.Forms;
 
+const
+  C_HIGHLIGHT_COLOR = clHotlight;
+
 type
   TDesignBoxMode = (dbmSelect, dbmDraw);
 
@@ -56,10 +59,10 @@ type
     fGrabHandleNoSize : TDesignSelectionGrabHandleStyle;
   public
     constructor Create; virtual;
-    property Color : TColor read fColor write fColor ;
+    property Color : TColor read fColor write fColor default C_HIGHLIGHT_COLOR;
     property PenWidth : integer read fPenWidth write fPenWidth ;
-    property GrabHandleCanSize : TDesignSelectionGrabHandleStyle read fGrabHandleCanSize write fGrabHandleCanSize ;
-    property GrabHandleNoSize : TDesignSelectionGrabHandleStyle read fGrabHandleNoSize write fGrabHandleNoSize ;
+    property GrabHandleCanSize : TDesignSelectionGrabHandleStyle read fGrabHandleCanSize write fGrabHandleCanSize default ghsSquare;
+    property GrabHandleNoSize : TDesignSelectionGrabHandleStyle read fGrabHandleNoSize write fGrabHandleNoSize default ghsNone;
   end;
 
   TDesignBoxSelectItemEvent = procedure(Sender: TObject; AItem: TDesignBoxBaseItem) of object;
@@ -610,7 +613,6 @@ uses System.NetEncoding, PngImage, Math, System.UITypes, System.RTTI,
   Vcl.Clipbrd;
 
 const
-  C_HIGHLIGHT_COLOR = clHotlight;
   C_UNFOCUSED_HIGHLIGHT_COLOR = clDkGray;
   C_SELECTBOX_INFLATE = 0;
   C_DPI = 300;
@@ -847,7 +849,6 @@ begin
   VertScrollBar.Tracking := True;
   fDrawClass := TDesignBoxItemRectangle; // default
   FCanvas := TDesignBoxCanvas.Create(Self);
-  //FBuffer := TBitmap.Create;
   FItems := TDesignBoxItemList.Create(Self);
   FSelectedItems := TDesignBoxItemList.Create(Self);
   FUndoList := TDesignUndoList.Create(Self);
@@ -1474,10 +1475,6 @@ begin
     end;
 
   end;
-  //Canvas.Brush.Style := bsClear;
-  //Canvas.Brush.Color := clDkGray;
-  //Canvas.FrameRect(ClientRect);
-
 end;
 
 
@@ -1923,7 +1920,7 @@ begin
       ACanvas.Pen.Color := C_UNFOCUSED_HIGHLIGHT_COLOR;
     ACanvas.Pen.Style := psSolid;
     ACanvas.Pen.Width := fSelectionStyle.PenWidth;
-    ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right, ARect.Bottom);
+    ACanvas.Rectangle(ARect.Left, ARect.Top, ARect.Right+1, ARect.Bottom+1);
   end;
 end;
 
