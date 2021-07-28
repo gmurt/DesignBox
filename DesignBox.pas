@@ -410,7 +410,7 @@ type
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
-    procedure DrawBackground(const aRect: TRect);
+    procedure DrawBackground(const aRect: TRect; const aAlternateBuffer: TBitmap = nil);
     procedure SaveToJson(const aJson: TJsonObject);
     procedure LoadFromJson(const aJson: TJsonObject);
   public
@@ -1505,7 +1505,7 @@ begin
 
   ResizeCanvas;
   FCanvas.FBuffer.Canvas.Brush.Color := PageColor;
-  FCanvas.FBuffer.Canvas.Brush.Style := bsClear;
+  FCanvas.FBuffer.Canvas.Brush.Style := bsSolid; // bsClear
   FCanvas.FBuffer.Canvas.Pen.Color := clBlack;
   FCanvas.FBuffer.Canvas.Pen.Mode := pmCopy;
   FCanvas.FBuffer.Canvas.Rectangle(0, 0, FCanvas.FBuffer.Width, FCanvas.FBuffer.Height);
@@ -3094,24 +3094,29 @@ begin
   end;
 end;
 
-procedure TDesignBoxCanvas.DrawBackground(const aRect: TRect);
+procedure TDesignBoxCanvas.DrawBackground(const aRect: TRect; const aAlternateBuffer: TBitmap);
 var
   imageRect: TRect;
   aBgSize: TSize;
   aBufferSize: TSize;
+  aActiveBuffer : TBitmap;
 begin
   if assigned(fBackground.Graphic) and not fBackground.Graphic.Empty then
   begin
+    // allows an alternative buffer bitmap to be provided i.e. when creating the composite image
+    if assigned(aAlternateBuffer) then
+      aActiveBuffer := aAlternateBuffer
+    else
+      aActiveBuffer := FBuffer;
     aBgSize := TSize.Create(fBackground.Graphic.Width, fBackground.Graphic.Height);
-    aBufferSize := TSize.Create(fBuffer.Width, fBuffer.Height);
+    aBufferSize := TSize.Create(aActiveBuffer.Width, aActiveBuffer.Height);
     case fBackgroundPos of
       bgStretch :     imageRect := GetDestRect(aBgSize, aBufferSize, True, false, false);
       bgStretchProp:  imageRect := GetDestRect(aBgSize, aBufferSize, True, True, True);
-      bgCentre:       imageRect := GetDestRect(TSize.Create(fBackground.Graphic.Width, fBackground.Graphic.Height), TSize.Create(fBuffer.Width, fBuffer.Height), False, False, True);
+      bgCentre:       imageRect := GetDestRect(TSize.Create(fBackground.Graphic.Width, fBackground.Graphic.Height), TSize.Create(aActiveBuffer.Width, aActiveBuffer.Height), False, False, True);
     end;
-    FBuffer.Canvas.StretchDraw(imageRect, fBackground.Graphic);
+    aActiveBuffer.Canvas.StretchDraw(imageRect, fBackground.Graphic);
   end;
-
 end;
 
 function TDesignBoxCanvas.GetDestRect(aOriginalSize: TSize; aClientSize: TSize; Stretch, Proportional, Center: boolean): TRect;
@@ -3464,6 +3469,16 @@ end;
 procedure TDesignBox.SaveAsBitmap(const ABitmap: TBitmap);
 begin
   ABitmap.SetSize(MmToPixels(FPageSizeMM.cx), MmToPixels(FPageSizeMM.cy));
+
+  // need to paint the background colour and graphics correctly here too.
+  ABitmap.Canvas.Brush.Color := PageColor;
+  ABitmap.Canvas.Brush.Style := bsSolid;
+  ABitmap.Canvas.Pen.Color := clBlack;
+  ABitmap.Canvas.Pen.Mode := pmCopy;
+  ABitmap.Canvas.Rectangle(0, 0, ABitmap.Width, ABitmap.Height);
+
+  FCanvas.DrawBackground(Rect(0, 0, FCanvas.FBuffer.Width, FCanvas.FBuffer.Height), ABitmap);
+
   FItems.PaintToCanvas(ABitmap.Canvas);
 end;
 
