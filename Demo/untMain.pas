@@ -1,3 +1,27 @@
+{ ******************************************************************************
+*                                                                              *
+*  DesignBox - Basic canvas/drawing component for Delphi                       *
+*                                                                              *
+*  https://github.com/gmurt/DesignBox                                          *
+*                                                                              *
+*  Copyright 2021 Graham Murt                                                  *
+*                                                                              *
+*  email: graham@kernow-software.co.uk                                         *
+*                                                                              *
+*  Licensed under the Apache License, Version 2.0 (the "License");             *
+*  you may not use this file except in compliance with the License.            *
+*  You may obtain a copy of the License at                                     *
+*                                                                              *
+*    http://www.apache.org/licenses/LICENSE-2.0                                *
+*                                                                              *
+*  Unless required by applicable law or agreed to in writing, software         *
+*  distributed under the License is distributed on an "AS IS" BASIS,           *
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.    *
+*  See the License for the specific language governing permissions and         *
+*  limitations under the License.                                              *
+*                                                                              *
+*******************************************************************************}
+
 unit untMain;
 
 interface
@@ -349,12 +373,9 @@ var
   item: TDesignBoxItemRectangle;
 begin
   item := DesignBox1.Canvas.Rectangle(RectF(20, 20, 40, 40));
-  item.SelectionStyle.Color := clWebDarkOrange;
   item.SelectionStyle.PenWidth := 1;
   DesignBox1.items.DeselectAll;
   item.selected := True;
-
-
 end;
 
 procedure TfrmMain.btnAddEllipseClick(Sender: TObject);
@@ -420,35 +441,17 @@ begin
 
   RadioGroup1.ItemIndex := 0; // when selecting something will revert to select mode
   StatusBar1.SimpleText := Format('TopLeft=(%f, %f) | Size=(%f, %f) | Tag=%d', [AItem.LeftMM, AItem.TopMM, AItem.WidthMM, AItem.HeightMM, AItem.Tag]);
-
-  {UpdateItemCoords(DesignBox1.SelectedItem);
-  // no selected item = set default fonts/color for next item
-  btnFont.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemText);
-  btnBorderColor.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemShape) or (DesignBox1.SelectedItem is TDesignBoxItemText); // text can have font color
-  btnFillColor.Enabled := (not assigned(DesignBox1.SelectedItem)) or (DesignBox1.SelectedItem is TDesignBoxItemShape) or (DesignBox1.SelectedItem is TDesignBoxItemText); // text can have background color
-  if DesignBox1.SelectedItem is TDesignBoxItemText then
-  begin
-    FontDialog1.Font.Assign(TDesignBoxItemText(DesignBox1.SelectedItem).Font);
-    btnBorderColor.Caption := 'Text Colour';
-  end;
-  if DesignBox1.SelectedItem is TDesignBoxItemShape then
-  begin
-    dlgBorderColor.Color := TDesignBoxItemShape(DesignBox1.SelectedItem).LineColor;
-    btnBorderColor.Caption := 'Border';
-    dlgFillColor.Color := TDesignBoxItemShape(DesignBox1.SelectedItem).BackgroundColor;
-  end;  }
 end;
 
 procedure TfrmMain.DoShow;
-var
+{vr
   textItem: TDesignBoxItemText;
-  textSize : TSizeF;
-const
-  C_DESIGNBOX = 'DesignBox';
+  textSize : TSizeF;  }
+{onst
+  C_DESIGNBOX = 'DesignBox'; }
 begin
   inherited;
-  UpdateActionStates;
-  //
+{ UpdateActionStates;
   DesignBox1.BeginUpdate;
   try
     textSize := DesignBox1.Canvas.MeasureText(C_DESIGNBOX);
@@ -459,7 +462,7 @@ begin
     textItem.options := []; // can't select, move, size or delete
   finally
     DesignBox1.EndUpdate;
-  end;
+  end; }
 end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
