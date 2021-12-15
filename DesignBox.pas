@@ -171,6 +171,7 @@ type
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
     procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
     property Data: TObject read fData write fData; // for linking external object instances (or even other design box items)
+    function GetSelectionRectPaddingPx: TSize; overload; // descendant classes can use this to alter the selection rectangle size
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
@@ -194,6 +195,7 @@ type
     property Options: TItemOptions read fOptions write SetOptions;
     property Visible: boolean read fVisible write SetVisible;
     property Tag: NativeInt read fTag write fTag;
+    property SelectionRectPaddingPx : TSize read GetSelectionRectPaddingPx;
   end;
 
   TDesignBoxBaseItemClass = class of TDesignBoxBaseItem;
@@ -638,7 +640,6 @@ uses System.NetEncoding, PngImage, Math, System.UITypes, System.RTTI,
 
 const
   C_UNFOCUSED_HIGHLIGHT_COLOR = clDkGray;
-  C_SELECTBOX_INFLATE = 0;
   C_DPI = 300;
   C_MM_PER_INCH = 25.4;
   C_DRAG_THRESHOLD = 4; //px
@@ -1567,9 +1568,6 @@ end;
 
 procedure TDesignBox.ResizeCanvas;
 begin
-  assert(fPageSizeMM.Width > 0, 'Page Width MM cannot be zero');
-  assert(fPageSizeMM.Height > 0, 'Page Height MM cannot be zero');
-
   FCanvas.SetSize(Trunc(MmToPixels(FPageSizeMM.Width) * Scale) + 1,
                   Trunc(MmToPixels(FPageSizeMM.Height) * Scale) + 1);
 end;
@@ -1936,7 +1934,7 @@ begin
   if FSelected and FVisible then
   begin
     ARect := RectPixels;
-    InflateRect(ARect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE);
+    InflateRect(ARect, SelectionRectPaddingPx.CX, SelectionRectPaddingPx.CY);
     ACanvas.Brush.Style := bsClear;
     if DesignBoxParent.Focused then
       ACanvas.Pen.Color := FSelectionStyle.Color
@@ -1968,6 +1966,12 @@ end;
 function TDesignBoxBaseItem.GetLeftMM: Extended;
 begin
   Result := MuToMM(FPosition.X);
+end;
+
+function TDesignBoxBaseItem.GetSelectionRectPaddingPx: TSize;
+begin
+  result.cx := 0;
+  result.cy := 0;
 end;
 
 function TDesignBoxBaseItem.GetTopMM: Extended;
@@ -2568,7 +2572,7 @@ begin
   begin
     // setup for selection handle drawing
     aRect := RectPixels;
-    InflateRect(aRect, C_SELECTBOX_INFLATE, C_SELECTBOX_INFLATE); // duplicate the inherited version
+    InflateRect(aRect, SelectionRectPaddingPx.CX, SelectionRectPaddingPx.CY); // duplicate the inherited version
     if DesignBoxParent.Focused then
       ACanvas.Pen.Color := FSelectionStyle.Color
     else
@@ -3439,7 +3443,7 @@ var
 begin
   fBuffer.Canvas.Font := fDesignBox.RulerOptions.Font;
   try
-    aRulerWidth := FBuffer.Canvas.TextWidth('9999') + 6;
+    aRulerWidth := FBuffer.Canvas.TextWidth('9999');
   finally
     fBuffer.Canvas.Font := fDesignBox.Font;
   end;
