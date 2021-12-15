@@ -171,7 +171,7 @@ type
     procedure PaintToCanvas(ACanvas: TCanvas); virtual; abstract;
     procedure DrawSelectedRect(ACanvas: TCanvas); virtual;
     property Data: TObject read fData write fData; // for linking external object instances (or even other design box items)
-    function GetSelectionRectPaddingPx: TSize; overload; // descendant classes can use this to alter the selection rectangle size
+    function GetSelectionRectPaddingPx: TSize; virtual; // descendant classes can use this to alter the selection rectangle size
   public
     constructor Create(ADesignBox: TDesignBox); virtual;
     destructor Destroy; override;
